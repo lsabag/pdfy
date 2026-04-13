@@ -184,9 +184,9 @@ export function DocumentCard({
               </span>
             </div>
           ) : thumbUrl ? (
-            <div className="w-full h-full overflow-hidden" style={{ background: "white" }}>
+            <div className="w-full h-full relative" style={{ background: "white", overflow: "hidden" }}>
               <iframe src={thumbUrl + "#toolbar=0&navpanes=0&scrollbar=0&view=FitH"}
-                className="pointer-events-none"
+                className="absolute top-0 left-0 pointer-events-none"
                 style={{
                   border: "none", background: "white",
                   width: "816px", height: "1056px",

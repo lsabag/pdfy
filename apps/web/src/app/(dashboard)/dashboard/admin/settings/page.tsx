@@ -51,7 +51,7 @@ export default function AdminSettingsPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold mb-6" style={{ color: "var(--color-text-primary)" }}>Settings</h1>
-      <div className="max-w-2xl space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         {/* Banner management */}
         <div className="rounded-xl p-6" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-light)" }}>
@@ -146,7 +146,6 @@ export default function AdminSettingsPage() {
           </div>
         </div>
 
-        <button className="btn btn-primary">Save Settings</button>
       </div>
     </div>
   );
