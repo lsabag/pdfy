@@ -72,7 +72,7 @@ export function UploadDropzone() {
             : "var(--color-surface)",
         }}
       >
-        <input {...getInputProps()} />
+        <input {...getInputProps()} id="upload-dropzone-input" name="fileUpload" aria-label="Upload documents" />
         <Upload
           className="mx-auto mb-3"
           size={32}
@@ -147,7 +147,7 @@ export function UploadDropzone() {
                 : "var(--color-surface-secondary)",
             }}
           >
-            <input {...getInputProps()} />
+            <input {...getInputProps()} id="upload-modal-input" name="fileUploadModal" aria-label="Upload documents" />
             <Upload
               className="mx-auto mb-2"
               size={24}

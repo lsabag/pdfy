@@ -59,11 +59,14 @@ export default function FoldersPage() {
       {showCreate && (
         <form onSubmit={handleCreate} className="flex gap-2 mb-6">
           <input
+            id="new-folder-name"
+            name="folderName"
             className="input flex-1"
             placeholder="Folder name"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             autoFocus
+            aria-label="Folder name"
           />
           <button type="submit" className="btn btn-primary">Create</button>
           <button type="button" className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button>

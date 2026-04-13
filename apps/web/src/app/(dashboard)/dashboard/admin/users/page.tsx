@@ -69,8 +69,8 @@ export default function AdminUsersPage() {
 
       {showInvite && (
         <form onSubmit={handleInvite} className="flex gap-2 mb-6 p-4 rounded-xl" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
-          <input className="input flex-1" type="email" placeholder="Email address" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} required />
-          <select className="input w-32" value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
+          <input id="invite-email" name="inviteEmail" className="input flex-1" type="email" placeholder="Email address" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} required aria-label="Invite email address" />
+          <select id="invite-role" name="inviteRole" className="input w-32" value={inviteRole} onChange={(e) => setInviteRole(e.target.value)} aria-label="Invite role">
             {ROLES.filter((r) => r !== "OWNER").map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
           <button type="submit" className="btn btn-primary">Send Invite</button>
@@ -101,10 +101,13 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="px-4 py-3">
                     <select
+                      id={`user-role-${user.id}`}
+                      name="userRole"
                       className="text-xs px-2 py-1 rounded-md" style={{ background: "var(--color-surface-secondary)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
                       value={user.role}
                       onChange={(e) => handleRoleChange(user.id, e.target.value)}
                       disabled={user.role === "OWNER"}
+                      aria-label={`Role for ${user.name}`}
                     >
                       {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
                     </select>

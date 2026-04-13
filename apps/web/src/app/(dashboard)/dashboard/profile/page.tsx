@@ -148,12 +148,12 @@ export default function ProfilePage() {
         </h3>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Name</label>
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} />
+            <label htmlFor="profile-name" className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Name</label>
+            <input id="profile-name" name="name" className="input" value={name} onChange={(e) => setName(e.target.value)} />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Email</label>
-            <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <label htmlFor="profile-email" className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Email</label>
+            <input id="profile-email" name="email" className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
           </div>
           <div className="flex items-center gap-3">
             <button className="btn btn-primary" onClick={handleSaveProfile} disabled={saving}>
@@ -175,16 +175,16 @@ export default function ProfilePage() {
         </h3>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Current Password</label>
-            <input className="input" type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} placeholder="Enter current password" />
+            <label htmlFor="profile-current-password" className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Current Password</label>
+            <input id="profile-current-password" name="currentPassword" className="input" type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} placeholder="Enter current password" />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>New Password</label>
-            <input className="input" type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="Min 8 characters" />
+            <label htmlFor="profile-new-password" className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>New Password</label>
+            <input id="profile-new-password" name="newPassword" className="input" type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="Min 8 characters" />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Confirm New Password</label>
-            <input className="input" type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="Repeat new password" />
+            <label htmlFor="profile-confirm-password" className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Confirm New Password</label>
+            <input id="profile-confirm-password" name="confirmPassword" className="input" type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="Repeat new password" />
           </div>
           <div className="flex items-center gap-3">
             <button className="btn btn-primary" onClick={handleChangePassword} disabled={pwSaving || !currentPw || !newPw}>
@@ -214,8 +214,8 @@ export default function ProfilePage() {
           </button>
         ) : (
           <div className="flex gap-2">
-            <input className="input flex-1" type="password" placeholder="Enter your password to confirm"
-              value={deletePw} onChange={(e) => setDeletePw(e.target.value)} />
+            <input id="profile-delete-password" name="deletePassword" className="input flex-1" type="password" placeholder="Enter your password to confirm"
+              value={deletePw} onChange={(e) => setDeletePw(e.target.value)} aria-label="Password to confirm account deactivation" />
             <button className="btn" style={{ background: "var(--color-error)", color: "white" }}
               onClick={handleDeleteAccount} disabled={!deletePw}>
               Confirm

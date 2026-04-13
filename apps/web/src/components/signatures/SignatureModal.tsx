@@ -219,14 +219,14 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
             <div>
               {/* Font and size controls */}
               <div className="flex gap-2 mb-3">
-                <select className="input text-sm h-9 flex-1" value={sigFont}
-                  onChange={(e) => setSigFont(e.target.value)}>
+                <select id="signature-font" name="signatureFont" className="input text-sm h-9 flex-1" value={sigFont}
+                  onChange={(e) => setSigFont(e.target.value)} aria-label="Signature font">
                   {fontOptions.map((f) => (
                     <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>
                   ))}
                 </select>
-                <select className="input text-sm h-9 w-20" value={sigFontSize}
-                  onChange={(e) => setSigFontSize(Number(e.target.value))}>
+                <select id="signature-font-size" name="signatureFontSize" className="input text-sm h-9 w-20" value={sigFontSize}
+                  onChange={(e) => setSigFontSize(Number(e.target.value))} aria-label="Signature font size">
                   {[18, 24, 30, 36, 42, 48, 56, 64].map((s) => (
                     <option key={s} value={s}>{s}px</option>
                   ))}
@@ -234,11 +234,12 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
               </div>
 
               {/* Text input - multiline */}
-              <textarea className="input text-xl resize-none"
+              <textarea id="signature-typed-name" name="signatureTypedName" className="input text-xl resize-none"
                 style={{ fontFamily: sigFont, fontSize: sigFontSize + "px", minHeight: "80px" }}
                 placeholder="Type your signature..."
                 rows={2}
-                value={typedName} onChange={(e) => setTypedName(e.target.value)} autoFocus />
+                value={typedName} onChange={(e) => setTypedName(e.target.value)} autoFocus
+                aria-label="Type your signature" />
 
               {/* Preview */}
               <div className="mt-3 p-4 rounded-lg" style={{ background: "white", border: "1px solid var(--color-border)", minHeight: "70px" }}>
@@ -308,8 +309,8 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
           {/* Save name input */}
           {showSaveInput && (
             <div className="mt-3 flex gap-2 p-3 rounded-lg" style={{ background: "var(--color-surface-secondary)" }}>
-              <input className="input text-sm flex-1 h-9" placeholder="Signature name (e.g. My Signature)"
-                value={saveName} onChange={(e) => setSaveName(e.target.value)} autoFocus />
+              <input id="signature-save-name" name="signatureSaveName" className="input text-sm flex-1 h-9" placeholder="Signature name (e.g. My Signature)"
+                value={saveName} onChange={(e) => setSaveName(e.target.value)} autoFocus aria-label="Signature name" />
               <button className="btn btn-primary text-sm h-9" onClick={handleSave}>Save</button>
               <button className="btn btn-secondary text-sm h-9" onClick={() => setShowSaveInput(false)}>Cancel</button>
             </div>

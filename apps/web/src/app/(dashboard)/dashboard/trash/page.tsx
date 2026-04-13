@@ -87,10 +87,13 @@ export default function TrashPage() {
               onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
             >
               <input
+                id={`trash-select-${item.id}`}
+                name="trashSelect"
                 type="checkbox"
                 checked={selected.has(item.id)}
                 onChange={() => toggleSelect(item.id)}
                 className="w-4 h-4 rounded"
+                aria-label={`Select ${item.name}`}
               />
               <AlertTriangle size={16} style={{ color: "var(--color-warning)" }} />
               <div className="flex-1 min-w-0">

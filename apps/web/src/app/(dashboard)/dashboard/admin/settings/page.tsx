@@ -11,12 +11,12 @@ export default function AdminSettingsPage() {
           <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-text-primary)" }}>General</h2>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Instance Name</label>
-              <input className="input" defaultValue="pdfy" />
+              <label htmlFor="settings-instance-name" className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Instance Name</label>
+              <input id="settings-instance-name" name="instanceName" className="input" defaultValue="pdfy" />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Default Storage Quota per User</label>
-              <input className="input" defaultValue="5 GB" />
+              <label htmlFor="settings-storage-quota" className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Default Storage Quota per User</label>
+              <input id="settings-storage-quota" name="storageQuota" className="input" defaultValue="5 GB" />
             </div>
           </div>
         </div>
@@ -29,14 +29,14 @@ export default function AdminSettingsPage() {
                 <p className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>Require strong passwords</p>
                 <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>Minimum 8 chars, mixed case, numbers</p>
               </div>
-              <input type="checkbox" defaultChecked className="w-5 h-5 rounded" />
+              <input id="settings-strong-passwords" name="requireStrongPasswords" type="checkbox" defaultChecked className="w-5 h-5 rounded" aria-label="Require strong passwords" />
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium" style={{ color: "var(--color-text-primary)" }}>Allow public share links</p>
                 <p className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>Users can create links for external access</p>
               </div>
-              <input type="checkbox" defaultChecked className="w-5 h-5 rounded" />
+              <input id="settings-public-share-links" name="allowPublicShareLinks" type="checkbox" defaultChecked className="w-5 h-5 rounded" aria-label="Allow public share links" />
             </div>
           </div>
         </div>

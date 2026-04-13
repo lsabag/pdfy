@@ -40,6 +40,8 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
             style={{ color: "var(--color-text-tertiary)" }}
           />
           <input
+            id="topbar-search"
+            name="search"
             type="text"
             className="input h-9 text-sm"
             style={{
@@ -50,6 +52,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
             placeholder="Search documents..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            aria-label="Search documents"
           />
         </div>
       </div>

@@ -69,12 +69,15 @@ export default function RegisterPage() {
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
           <label
+            htmlFor="register-name"
             className="block text-sm font-medium mb-1.5"
             style={{ color: "var(--color-text-primary)" }}
           >
             Name
           </label>
           <input
+            id="register-name"
+            name="name"
             type="text"
             className="input"
             placeholder="Your full name"
@@ -86,12 +89,15 @@ export default function RegisterPage() {
 
         <div>
           <label
+            htmlFor="register-email"
             className="block text-sm font-medium mb-1.5"
             style={{ color: "var(--color-text-primary)" }}
           >
             Email
           </label>
           <input
+            id="register-email"
+            name="email"
             type="email"
             className="input"
             placeholder="Enter your email"
@@ -103,12 +109,15 @@ export default function RegisterPage() {
 
         <div>
           <label
+            htmlFor="register-password"
             className="block text-sm font-medium mb-1.5"
             style={{ color: "var(--color-text-primary)" }}
           >
             Password
           </label>
           <input
+            id="register-password"
+            name="password"
             type="password"
             className="input"
             placeholder="Min 8 chars, uppercase, lowercase, number"

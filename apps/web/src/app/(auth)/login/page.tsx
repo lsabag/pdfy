@@ -69,12 +69,15 @@ export default function LoginPage() {
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div>
           <label
+            htmlFor="login-email"
             className="block text-sm font-medium mb-1.5"
             style={{ color: "var(--color-text-primary)" }}
           >
             Email
           </label>
           <input
+            id="login-email"
+            name="email"
             type="email"
             className="input"
             placeholder="Enter your email"
@@ -86,12 +89,15 @@ export default function LoginPage() {
 
         <div>
           <label
+            htmlFor="login-password"
             className="block text-sm font-medium mb-1.5"
             style={{ color: "var(--color-text-primary)" }}
           >
             Password
           </label>
           <input
+            id="login-password"
+            name="password"
             type="password"
             className="input"
             placeholder="Enter your password"

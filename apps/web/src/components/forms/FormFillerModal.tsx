@@ -110,7 +110,7 @@ export function FormFillerModal({ isOpen, onClose, documentId, onFilled }: FormF
                 const Icon = getFieldIcon(field.type);
                 return (
                   <div key={field.name}>
-                    <label className="flex items-center gap-2 text-sm font-medium mb-1.5"
+                    <label htmlFor={`form-field-${field.name}`} className="flex items-center gap-2 text-sm font-medium mb-1.5"
                       style={{ color: "var(--color-text-primary)" }}>
                       <Icon size={14} style={{ color: "var(--color-text-tertiary)" }} />
                       {field.name}
@@ -120,14 +120,14 @@ export function FormFillerModal({ isOpen, onClose, documentId, onFilled }: FormF
                       </span>
                     </label>
                     {field.type === "checkbox" ? (
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input type="checkbox" className="w-4 h-4 rounded"
+                      <label htmlFor={`form-field-${field.name}`} className="flex items-center gap-2 cursor-pointer">
+                        <input id={`form-field-${field.name}`} name={field.name} type="checkbox" className="w-4 h-4 rounded"
                           checked={!!values[field.name]}
                           onChange={(e) => setValues({ ...values, [field.name]: e.target.checked })} />
                         <span className="text-sm" style={{ color: "var(--color-text-secondary)" }}>Checked</span>
                       </label>
                     ) : (
-                      <input className="input text-sm"
+                      <input id={`form-field-${field.name}`} name={field.name} className="input text-sm"
                         value={values[field.name] || ""}
                         onChange={(e) => setValues({ ...values, [field.name]: e.target.value })}
                         placeholder={`Enter ${field.name}...`} />

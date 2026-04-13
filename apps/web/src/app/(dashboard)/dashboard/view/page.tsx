@@ -261,10 +261,11 @@ function ViewContent() {
           <button className="w-7 h-7 flex items-center justify-center rounded-md transition-colors disabled:opacity-30"
             style={{ color: "var(--color-text-primary)" }}
             disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => p - 1)}><ChevronLeft size={15} /></button>
-          <input type="number" min={1} max={document.pageCount || 1} value={currentPage}
+          <input id="page-number" name="pageNumber" type="number" min={1} max={document.pageCount || 1} value={currentPage}
             onChange={(e) => setCurrentPage(Math.min(document.pageCount, Math.max(1, Number(e.target.value))))}
             className="w-10 text-center text-xs h-7 rounded-md font-medium"
-            style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+            style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }}
+            aria-label="Page number" />
           <span className="text-xs font-medium" style={{ color: "var(--color-text-secondary)" }}>/ {document.pageCount}</span>
           <button className="w-7 h-7 flex items-center justify-center rounded-md transition-colors disabled:opacity-30"
             style={{ color: "var(--color-text-primary)" }}
@@ -490,9 +491,10 @@ function ViewContent() {
             </div>
             <div className="p-3" style={{ borderTop: "1px solid var(--color-border-light)" }}>
               <div className="flex gap-2">
-                <input className="input text-sm h-9 flex-1" placeholder={`Comment on page ${currentPage}...`}
+                <input id="new-comment" name="newComment" className="input text-sm h-9 flex-1" placeholder={`Comment on page ${currentPage}...`}
                   value={newComment} onChange={(e) => setNewComment(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleAddComment()} />
+                  onKeyDown={(e) => e.key === "Enter" && handleAddComment()}
+                  aria-label="Add a comment" />
                 <button className="btn btn-primary h-9 text-sm px-3" onClick={handleAddComment}>Send</button>
               </div>
             </div>
