@@ -91,6 +91,17 @@ export const signatures = sqliteTable('signatures', {
   signedAt: text('signed_at').notNull().default(sql`(datetime('now'))`),
 });
 
+// Saved signatures (permanent signatures the user can reuse)
+export const savedSignatures = sqliteTable('saved_signatures', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull().references(() => users.id),
+  name: text('name').notNull(), // e.g. "My signature", "Initials"
+  type: text('type', { enum: ['DRAW', 'TYPE', 'IMAGE'] }).notNull().default('DRAW'),
+  data: text('data').notNull(), // base64 PNG or SVG
+  isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(false),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+});
+
 export const activityLog = sqliteTable('activity_log', {
   id: text('id').primaryKey(),
   action: text('action').notNull(),

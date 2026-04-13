@@ -607,6 +607,164 @@ app.post('/api/documents/:id/sign', auth, async (c) => {
   return c.json({ id }, 201);
 });
 
+// ═══════════════════════ SAVED SIGNATURES ═══════════════════════
+// List user's saved signatures
+app.get('/api/signatures', auth, async (c) => {
+  const user = c.get('user');
+  const d = db(c);
+  const sigs = await d.select().from(schema.savedSignatures)
+    .where(eq(schema.savedSignatures.userId, user.id))
+    .orderBy(desc(schema.savedSignatures.createdAt)).all();
+  return c.json(sigs);
+});
+
+// Save a new signature (permanent)
+app.post('/api/signatures', auth, async (c) => {
+  const user = c.get('user');
+  const { name, type, data: sigData, isDefault } = await c.req.json();
+  if (!sigData) return c.json({ error: 'Signature data required' }, 400);
+  const d = db(c);
+  const id = uid();
+
+  // If setting as default, unset previous default
+  if (isDefault) {
+    await d.update(schema.savedSignatures).set({ isDefault: false })
+      .where(eq(schema.savedSignatures.userId, user.id));
+  }
+
+  await d.insert(schema.savedSignatures).values({
+    id, userId: user.id, name: name || 'My Signature',
+    type: type || 'DRAW', data: sigData, isDefault: isDefault || false,
+  });
+  return c.json({ id }, 201);
+});
+
+// Delete a saved signature
+app.delete('/api/signatures/:id', auth, async (c) => {
+  const user = c.get('user');
+  const d = db(c);
+  await d.delete(schema.savedSignatures).where(
+    and(eq(schema.savedSignatures.id, c.req.param('id')), eq(schema.savedSignatures.userId, user.id)),
+  );
+  return c.body(null, 204);
+});
+
+// Set a signature as default
+app.patch('/api/signatures/:id/default', auth, async (c) => {
+  const user = c.get('user');
+  const d = db(c);
+  await d.update(schema.savedSignatures).set({ isDefault: false })
+    .where(eq(schema.savedSignatures.userId, user.id));
+  await d.update(schema.savedSignatures).set({ isDefault: true })
+    .where(and(eq(schema.savedSignatures.id, c.req.param('id')), eq(schema.savedSignatures.userId, user.id)));
+  return c.json({ success: true });
+});
+
+// Apply signature to a document (stamp it on a specific page/position)
+app.post('/api/documents/:id/apply-signature', auth, async (c) => {
+  const user = c.get('user');
+  const { signatureData, pageNumber, x, y, width, height } = await c.req.json();
+  const d = db(c);
+  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
+  if (!doc || doc.ownerId !== user.id) return c.json({ error: 'Not found' }, 404);
+
+  // Record the signature placement
+  const sigId = uid();
+  await d.insert(schema.signatures).values({
+    id: sigId, documentId: doc.id, signerId: user.id,
+    signatureData, pageNumber,
+    position: { x, y, width, height },
+    ipAddress: c.req.header('CF-Connecting-IP') || 'unknown',
+    userAgent: c.req.header('User-Agent') || 'unknown',
+  });
+
+  // TODO: In a full implementation, we'd use pdf-lib to stamp the signature image
+  // onto the actual PDF. For now we record the placement metadata.
+
+  return c.json({ id: sigId, message: 'Signature applied' }, 201);
+});
+
+// ═══════════════════════ FORM FILLING ═══════════════════════
+// Get form fields from a PDF (detect fillable fields)
+app.get('/api/documents/:id/form-fields', auth, async (c) => {
+  const user = c.get('user');
+  const d = db(c);
+  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
+  if (!doc || doc.ownerId !== user.id) return c.json({ error: 'Not found' }, 404);
+
+  // Get stored form fields
+  const fields = await d.select().from(schema.conversions)
+    .where(and(eq(schema.conversions.documentId, doc.id), eq(schema.conversions.format, 'FORM_FIELDS')))
+    .all();
+
+  // Try to detect form fields from the PDF
+  const object = await c.env.STORAGE.get(doc.storageKey);
+  if (!object) return c.json({ error: 'File not found' }, 404);
+
+  try {
+    const pdfDoc = await PDFDocument.load(await object.arrayBuffer());
+    const form = pdfDoc.getForm();
+    const pdfFields = form.getFields().map((field) => ({
+      name: field.getName(),
+      type: field.constructor.name.replace('PDF', '').replace('Field', '').toLowerCase(),
+    }));
+    return c.json({ fields: pdfFields, count: pdfFields.length });
+  } catch {
+    return c.json({ fields: [], count: 0, message: 'No form fields detected' });
+  }
+});
+
+// Fill form fields in a PDF
+app.post('/api/documents/:id/fill-form', auth, async (c) => {
+  const user = c.get('user');
+  const { fields } = await c.req.json(); // { fieldName: value, ... }
+  const d = db(c);
+  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
+  if (!doc || doc.ownerId !== user.id) return c.json({ error: 'Not found' }, 404);
+
+  const object = await c.env.STORAGE.get(doc.storageKey);
+  if (!object) return c.json({ error: 'File not found' }, 404);
+
+  try {
+    const pdfDoc = await PDFDocument.load(await object.arrayBuffer());
+    const form = pdfDoc.getForm();
+    let filled = 0;
+
+    for (const [fieldName, value] of Object.entries(fields)) {
+      try {
+        const field = form.getField(fieldName);
+        const typeName = field.constructor.name;
+        if (typeName === 'PDFTextField') {
+          (field as any).setText(value as string);
+          filled++;
+        } else if (typeName === 'PDFCheckBox') {
+          if (value) (field as any).check(); else (field as any).uncheck();
+          filled++;
+        } else if (typeName === 'PDFDropdown') {
+          (field as any).select(value as string);
+          filled++;
+        } else if (typeName === 'PDFRadioGroup') {
+          (field as any).select(value as string);
+          filled++;
+        }
+      } catch { /* skip fields that can't be filled */ }
+    }
+
+    const newBuffer = await pdfDoc.save();
+    const newKey = `documents/${user.id}/${doc.id}/current.pdf`;
+    await c.env.STORAGE.put(newKey, newBuffer, { httpMetadata: { contentType: 'application/pdf' } });
+
+    await d.update(schema.documents).set({
+      storageKey: newKey, sizeBytes: newBuffer.byteLength,
+      version: doc.version + 1, updatedAt: new Date().toISOString(),
+    }).where(eq(schema.documents.id, doc.id));
+
+    return c.json({ filled, total: Object.keys(fields).length });
+  } catch (error) {
+    return c.json({ error: 'Failed to fill form: ' + String(error) }, 500);
+  }
+});
+
 // ═══════════════════════ BULK ═══════════════════════
 app.post('/api/bulk/move', auth, async (c) => {
   const user = c.get('user');

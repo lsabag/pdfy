@@ -7,9 +7,11 @@ import {
   ChevronLeft, ChevronRight, Maximize, RotateCw,
   Trash2, Lock, Minimize2, FileOutput, FileImage,
   FileSpreadsheet, Pen, MessageSquare, Edit3,
-  Scissors, Merge, MoreHorizontal,
+  Scissors, Merge, MoreHorizontal, FormInput,
 } from "lucide-react";
 import { api } from "@/lib/api-client";
+import { SignatureModal } from "@/components/signatures/SignatureModal";
+import { FormFillerModal } from "@/components/forms/FormFillerModal";
 
 export default function DocumentViewPage() {
   const router = useRouter();
@@ -21,6 +23,8 @@ export default function DocumentViewPage() {
   const [loading, setLoading] = useState(true);
   const [showTools, setShowTools] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [showSignature, setShowSignature] = useState(false);
+  const [showFormFiller, setShowFormFiller] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
 
@@ -167,6 +171,8 @@ export default function DocumentViewPage() {
           <button className="btn btn-ghost w-8 h-8 p-0" onClick={() => handleRotate(90)} title="Rotate page"><RotateCw size={15} /></button>
           <button className="btn btn-ghost w-8 h-8 p-0" onClick={() => { setShowComments(!showComments); if (!showComments) loadComments(); }}
             title="Comments"><MessageSquare size={15} /></button>
+          <button className="btn btn-ghost w-8 h-8 p-0" onClick={() => setShowSignature(true)} title="Sign"><Pen size={15} /></button>
+          <button className="btn btn-ghost w-8 h-8 p-0" onClick={() => setShowFormFiller(true)} title="Fill form"><FormInput size={15} /></button>
           <button className="btn btn-ghost w-8 h-8 p-0" onClick={handleShare} title="Share"><Share2 size={15} /></button>
           <button className="btn btn-ghost w-8 h-8 p-0" onClick={handleDownload} title="Download"><Download size={15} /></button>
 
@@ -184,7 +190,8 @@ export default function DocumentViewPage() {
                   <div className="my-1" style={{ borderTop: "1px solid var(--color-border-light)" }} />
                   <ToolItem icon={Minimize2} label="Optimize / Compress" onClick={() => { handleOptimize(); setShowTools(false); }} />
                   <ToolItem icon={Lock} label="Password protect" onClick={() => { handleEncrypt(); setShowTools(false); }} />
-                  <ToolItem icon={Pen} label="Sign document" onClick={() => { alert("Draw signature on page - coming soon"); setShowTools(false); }} />
+                  <ToolItem icon={Pen} label="Sign document" onClick={() => { setShowSignature(true); setShowTools(false); }} />
+                  <ToolItem icon={FormInput} label="Fill form fields" onClick={() => { setShowFormFiller(true); setShowTools(false); }} />
                   <div className="my-1" style={{ borderTop: "1px solid var(--color-border-light)" }} />
                   <ToolItem icon={FileOutput} label="Export to Word" onClick={() => { handleConvert("PDF_TO_DOCX"); setShowTools(false); }} />
                   <ToolItem icon={FileSpreadsheet} label="Export to Excel" onClick={() => { handleConvert("PDF_TO_XLSX"); setShowTools(false); }} />
@@ -253,6 +260,35 @@ export default function DocumentViewPage() {
           </div>
         )}
       </div>
+
+      {/* Signature Modal */}
+      <SignatureModal
+        isOpen={showSignature}
+        onClose={() => setShowSignature(false)}
+        onApply={async (signatureData) => {
+          try {
+            await api.post(`/documents/${docId}/apply-signature`, {
+              signatureData,
+              pageNumber: currentPage,
+              x: 100, y: 600, width: 200, height: 60,
+            });
+            setShowSignature(false);
+            alert(`Signature applied to page ${currentPage}!`);
+          } catch {
+            alert("Failed to apply signature");
+          }
+        }}
+      />
+
+      {/* Form Filler Modal */}
+      <FormFillerModal
+        isOpen={showFormFiller}
+        onClose={() => setShowFormFiller(false)}
+        documentId={docId || ""}
+        onFilled={() => {
+          setDocument({ ...document, version: document.version + 1 });
+        }}
+      />
     </div>
   );
 }
