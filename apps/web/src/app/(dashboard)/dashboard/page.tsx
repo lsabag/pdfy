@@ -68,22 +68,8 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Hero banner */}
-      <div className="rounded-2xl p-6 md:p-8 mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
-        style={{ background: "linear-gradient(135deg, #E8F0FE 0%, #D4E4FD 100%)", border: "1px solid #C4D7F5" }}>
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-2" style={{ color: "var(--color-text-primary)" }}>
-            Hi, {user?.name?.split(" ")[0] || "there"}
-          </h1>
-          <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>
-            Your workspace for editing, converting, signing, and sharing PDFs.
-          </p>
-        </div>
-        <button className="btn btn-primary h-10 px-5"
-          onClick={() => document.dispatchEvent(new CustomEvent("pdfy:open-upload"))}>
-          <Upload size={16} /> Upload PDF
-        </button>
-      </div>
+      {/* Admin announcement banner - only shows when there's a message */}
+      <AdminBanner />
 
       {/* Tools carousel */}
       <div className="mb-8">
@@ -264,6 +250,40 @@ export default function DashboardPage() {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+function AdminBanner() {
+  const [banner, setBanner] = useState<{ message: string; type: string } | null>(null);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data } = await api.get("/admin/banner");
+        if (data?.message) setBanner(data);
+      } catch {}
+    })();
+  }, []);
+
+  if (!banner || dismissed) return null;
+
+  const colors: Record<string, { bg: string; border: string; text: string }> = {
+    info: { bg: "#E8F0FE", border: "#C4D7F5", text: "var(--color-primary)" },
+    success: { bg: "#E3F8EE", border: "#A3E4C1", text: "var(--color-success)" },
+    warning: { bg: "#FFF8E1", border: "#FFD54F", text: "#F57F17" },
+    error: { bg: "#FFEBE7", border: "#FFCDD2", text: "var(--color-error)" },
+  };
+  const c = colors[banner.type] || colors.info;
+
+  return (
+    <div className="rounded-xl p-4 mb-6 flex items-center justify-between"
+      style={{ background: c.bg, border: `1px solid ${c.border}` }}>
+      <p className="text-sm font-medium" style={{ color: c.text }}>{banner.message}</p>
+      <button onClick={() => setDismissed(true)} className="btn-icon" style={{ width: 24, height: 24, background: "transparent", border: "none" }}>
+        <span style={{ color: c.text, fontSize: 16 }}>×</span>
+      </button>
     </div>
   );
 }

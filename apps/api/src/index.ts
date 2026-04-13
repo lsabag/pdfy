@@ -1109,6 +1109,46 @@ app.get('/api/admin/invites', auth, async (c) => {
   return c.json(invs);
 });
 
+// ═══════════════════════ ADMIN BANNER ═══════════════════════
+// Get current banner (public - any logged-in user)
+app.get('/api/admin/banner', auth, async (c) => {
+  const d = db(c);
+  // Use a simple key-value approach via the notifications table
+  const banner = await d.select().from(schema.notifications)
+    .where(and(eq(schema.notifications.type, 'ADMIN_BANNER'), eq(schema.notifications.isRead, false)))
+    .orderBy(desc(schema.notifications.createdAt)).limit(1).get();
+  if (!banner) return c.json(null);
+  return c.json({ message: banner.message, type: banner.title, createdAt: banner.createdAt });
+});
+
+// Set banner (admin only)
+app.post('/api/admin/banner', auth, async (c) => {
+  const user = c.get('user');
+  if (user.role !== 'OWNER' && user.role !== 'ADMIN') return c.json({ error: 'Forbidden' }, 403);
+  const { message, type } = await c.req.json();
+  const d = db(c);
+  // Clear old banners
+  await d.update(schema.notifications).set({ isRead: true })
+    .where(eq(schema.notifications.type, 'ADMIN_BANNER'));
+  if (message) {
+    await d.insert(schema.notifications).values({
+      id: uid(), type: 'ADMIN_BANNER', title: type || 'info',
+      message, userId: user.id,
+    });
+  }
+  return c.json({ success: true });
+});
+
+// Delete banner (admin only)
+app.delete('/api/admin/banner', auth, async (c) => {
+  const user = c.get('user');
+  if (user.role !== 'OWNER' && user.role !== 'ADMIN') return c.json({ error: 'Forbidden' }, 403);
+  const d = db(c);
+  await d.update(schema.notifications).set({ isRead: true })
+    .where(eq(schema.notifications.type, 'ADMIN_BANNER'));
+  return c.json({ success: true });
+});
+
 // ═══════════════════════ NOTIFICATIONS ═══════════════════════
 app.get('/api/notifications', auth, async (c) => {
   const user = c.get('user');
