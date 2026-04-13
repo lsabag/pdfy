@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { Topbar } from "@/components/layout/Topbar";
-import { Menu, X } from "lucide-react";
+import { TopNav } from "@/components/layout/TopNav";
 
 export default function DashboardLayout({
   children,
@@ -14,7 +12,6 @@ export default function DashboardLayout({
 }) {
   const router = useRouter();
   const { isAuthenticated, isLoading, loadUser } = useAuthStore();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     loadUser();
@@ -37,26 +34,11 @@ export default function DashboardLayout({
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Desktop sidebar */}
-      <div className="hidden lg:block">
-        <Sidebar />
-      </div>
-
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <>
-          <div className="fixed inset-0 bg-black/40 z-40 lg:hidden" onClick={() => setSidebarOpen(false)} />
-          <div className="fixed left-0 top-0 h-full z-50 lg:hidden">
-            <Sidebar />
-          </div>
-        </>
-      )}
-
-      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <Topbar onMenuClick={() => setSidebarOpen(!sidebarOpen)} />
-        <main className="flex-1 overflow-auto p-4 md:p-6">{children}</main>
-      </div>
+    <div className="flex flex-col min-h-screen">
+      <TopNav />
+      <main className="flex-1 w-full max-w-[1400px] mx-auto px-4 md:px-6 py-6">
+        {children}
+      </main>
     </div>
   );
 }
