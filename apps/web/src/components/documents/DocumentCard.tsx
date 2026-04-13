@@ -75,10 +75,20 @@ export function DocumentCard({
 
   const closeMenu = () => { setShowMenu(false); setMenuPos(null); };
 
-  // Mark as having content (for visual indicator)
+  // Load PDF thumbnail preview
   useEffect(() => {
-    if (status === "READY") setThumbUrl("ready");
-  }, [status]);
+    if (status !== "READY") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get(`/documents/${id}/download`, { responseType: "blob" });
+        const blob = res.data as Blob;
+        if (blob.type === "application/json" || blob.size < 100) return;
+        if (!cancelled) setThumbUrl(URL.createObjectURL(blob));
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [id, status]);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -173,12 +183,17 @@ export function DocumentCard({
               </span>
             </div>
           ) : thumbUrl ? (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-2"
-              style={{ background: "linear-gradient(180deg, #FAFAFA 0%, #F0F0F0 100%)" }}>
-              <div className="w-14 h-16 rounded-md flex items-center justify-center"
-                style={{ background: "white", boxShadow: "0 1px 4px rgba(0,0,0,0.1)" }}>
-                <span className="text-xs font-bold" style={{ color: "#D7373F" }}>PDF</span>
-              </div>
+            <div style={{ width: "100%", height: "100%", overflow: "hidden", position: "relative", background: "white", borderRadius: "11px 11px 0 0" }}>
+              <iframe src={thumbUrl + "#toolbar=0&navpanes=0&scrollbar=0&view=FitH"}
+                className="pointer-events-none"
+                style={{
+                  border: "none", background: "white",
+                  width: "850px", height: "1100px",
+                  transform: "scale(0.25)", transformOrigin: "top left",
+                  position: "absolute", top: -6, left: -3,
+                  borderRadius: "11px 11px 0 0",
+                }}
+                title={`Preview ${name}`} tabIndex={-1} />
             </div>
           ) : (
             <FileText size={48} strokeWidth={1} style={{ color: "var(--color-text-tertiary)" }} />
