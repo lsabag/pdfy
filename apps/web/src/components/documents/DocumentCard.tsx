@@ -188,13 +188,13 @@ export function DocumentCard({
               width: "100%", height: "100%", overflow: "hidden", position: "relative", background: "white",
             }}>
               <div style={{
-                width: "816px", height: "1056px",
+                width: "850px", height: "1100px",
                 transform: "scale(0.22)", transformOrigin: "top left",
-                position: "absolute", top: 0, left: 0,
+                position: "absolute", top: -5, left: -10,
               }}>
                 <iframe src={thumbUrl + "#toolbar=0&navpanes=0&scrollbar=0&view=FitH"}
                   className="pointer-events-none"
-                  style={{ border: "none", background: "white", width: "100%", height: "100%" }}
+                  style={{ border: "none", background: "white", width: "100%", height: "100%", margin: 0, padding: 0 }}
                   title={`Preview ${name}`} tabIndex={-1} />
               </div>
             </div>
