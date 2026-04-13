@@ -198,14 +198,21 @@ export function DocumentCard({
             )}
           </div>
 
-          <div className="flex items-center gap-0.5 flex-shrink-0">
-            <button onClick={() => toggleFavorite(id)} className="btn btn-ghost w-7 h-7 p-0">
-              <Star size={14} fill={isFavorite ? "var(--color-warning)" : "none"}
-                style={{ color: isFavorite ? "var(--color-warning)" : "var(--color-text-tertiary)" }} />
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button onClick={() => toggleFavorite(id)}
+              className="w-8 h-8 flex items-center justify-center rounded-md transition-all"
+              style={{
+                background: isFavorite ? "#FFF8E1" : "#F0F0F0",
+                border: isFavorite ? "1px solid #FFD54F" : "1px solid #D5D5D5",
+              }}>
+              <Star size={14} fill={isFavorite ? "#F5A623" : "none"}
+                style={{ color: isFavorite ? "#F5A623" : "#6E6E6E" }} />
             </button>
 
             <div className="relative">
-              <button onClick={() => setShowMenu(!showMenu)} className="btn btn-ghost w-7 h-7 p-0">
+              <button onClick={() => { setMenuPos(null); setShowMenu(!showMenu); }}
+                className="w-8 h-8 flex items-center justify-center rounded-md transition-all"
+                style={{ background: "#F0F0F0", border: "1px solid #D5D5D5", color: "#2C2C2C" }}>
                 <MoreVertical size={14} />
               </button>
 
