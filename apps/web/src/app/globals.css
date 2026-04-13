@@ -1,0 +1,159 @@
+@import "tailwindcss";
+
+:root {
+  /* Adobe-inspired color palette */
+  --color-primary: #1473E6;
+  --color-primary-hover: #0D66D0;
+  --color-primary-light: #E5F0FF;
+
+  --color-sidebar-bg: #1B2028;
+  --color-sidebar-hover: #2A3140;
+  --color-sidebar-active: #323B4A;
+  --color-sidebar-text: #B3B8C2;
+  --color-sidebar-text-active: #FFFFFF;
+
+  --color-surface: #FFFFFF;
+  --color-surface-secondary: #F5F5F5;
+  --color-surface-hover: #FAFAFA;
+
+  --color-border: #E1E1E1;
+  --color-border-light: #F0F0F0;
+
+  --color-text-primary: #2C2C2C;
+  --color-text-secondary: #6E6E6E;
+  --color-text-tertiary: #909090;
+
+  --color-success: #12805C;
+  --color-warning: #E68619;
+  --color-error: #D7373F;
+
+  --color-badge-blue: #E5F0FF;
+  --color-badge-green: #E3F8EE;
+  --color-badge-red: #FFEBE7;
+
+  /* Spacing */
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 64px;
+  --topbar-height: 56px;
+
+  /* Shadows (Adobe Spectrum style) */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-card: 0 1px 4px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}
+
+@theme inline {
+  --color-background: #F5F5F5;
+  --color-foreground: #2C2C2C;
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling (Adobe-like) */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #C0C0C0;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #A0A0A0;
+}
+
+/* Focus ring */
+*:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Button base */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  transition: all 0.15s ease;
+  cursor: pointer;
+  border: none;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: white;
+}
+.btn-primary:hover {
+  background: var(--color-primary-hover);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border);
+}
+.btn-secondary:hover {
+  background: var(--color-surface-hover);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+.btn-ghost:hover {
+  background: var(--color-surface-secondary);
+  color: var(--color-text-primary);
+}
+
+/* Input base */
+.input {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--color-text-primary);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 1px var(--color-primary);
+  outline: none;
+}
+.input::placeholder {
+  color: var(--color-text-tertiary);
+}

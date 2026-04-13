@@ -1,0 +1,17 @@
+name = "pdfy-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+[vars]
+CORS_ORIGIN = "*"
+JWT_SECRET = "change-me-in-dashboard"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pdfy-db"
+database_id = "68033979-a114-4b3a-9311-d1a9b5a3afcc"
+migrations_dir = "drizzle"
+
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "pdfy-storage"

@@ -1,0 +1,26 @@
+{
+  "name": "@pdfy/api",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "wrangler d1 migrations apply pdfy-db --local",
+    "db:migrate:prod": "wrangler d1 migrations apply pdfy-db --remote",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "hono": "^4.4.0",
+    "@pdfy/shared": "workspace:*",
+    "drizzle-orm": "^0.36.0",
+    "nanoid": "^5.0.7",
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240512.0",
+    "drizzle-kit": "^0.30.0",
+    "wrangler": "^4.0.0",
+    "typescript": "^5.4.0"
+  }
+}
