@@ -169,6 +169,8 @@ export function DocumentCard({
       className="group rounded-xl overflow-hidden transition-shadow hover:shadow-[var(--shadow-md)]"
       style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-light)" }}
       onContextMenu={handleContextMenu}
+      draggable
+      onDragStart={(e) => { e.dataTransfer.setData("text/docId", id); }}
     >
       {/* Thumbnail */}
       <Link href={`/dashboard/view?id=${id}`}>
@@ -278,6 +280,24 @@ export function DocumentCard({
                       fetchDocuments();
                     }} />
                     <MenuItem icon={Share2} label="Share link" onClick={handleShare} />
+                    <MenuItem icon={FolderInput} label="Move to folder" onClick={async () => {
+                      closeMenu();
+                      const folder = prompt("Enter folder name to move to (or leave empty for root):");
+                      if (folder === null) return;
+                      if (!folder.trim()) {
+                        await api.patch(`/documents/${id}`, { folderId: null });
+                      } else {
+                        // Find or create folder
+                        const { data: folders } = await api.get("/folders");
+                        let target = folders.find((f: any) => f.name.toLowerCase() === folder.toLowerCase());
+                        if (!target) {
+                          const { data: newF } = await api.post("/folders", { name: folder });
+                          target = newF;
+                        }
+                        await api.patch(`/documents/${id}`, { folderId: target.id });
+                      }
+                      fetchDocuments();
+                    }} />
                     <MenuItem icon={Star} label={isFavorite ? "Remove from favorites" : "Add to favorites"}
                       onClick={() => { closeMenu(); toggleFavorite(id); }} />
 

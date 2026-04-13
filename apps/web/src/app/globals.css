@@ -159,6 +159,11 @@ body {
   border-color: #BFBFBF;
 }
 
+/* Mobile-only button - hidden on lg+ screens */
+@media (min-width: 1024px) {
+  .mobile-only-btn { display: none !important; }
+}
+
 /* Input base */
 .input {
   width: 100%;

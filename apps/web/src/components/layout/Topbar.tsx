@@ -24,9 +24,9 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
         borderBottom: "1px solid var(--color-border)",
       }}
     >
-      {/* Mobile menu button */}
+      {/* Mobile menu button - hidden on desktop */}
       {onMenuClick && (
-        <button onClick={onMenuClick} className="btn-icon lg:hidden mr-2">
+        <button onClick={onMenuClick} className="mr-2 mobile-only-btn btn-icon">
           <Menu size={18} />
         </button>
       )}
