@@ -29,7 +29,7 @@ export default function FavoritesPage() {
           <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>Star documents to access them quickly</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {documents.map((doc) => (
             <DocumentCard key={doc.id} {...doc} />
           ))}

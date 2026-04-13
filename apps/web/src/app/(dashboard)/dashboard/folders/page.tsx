@@ -81,7 +81,7 @@ export default function FoldersPage() {
           <p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>Create a folder to organize your documents</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {folders.map((folder) => (
             <Link
               key={folder.id}

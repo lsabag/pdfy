@@ -117,7 +117,7 @@ export default function DashboardPage() {
 
       {/* Document grid */}
       {viewMode === "grid" && documents.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {documents.map((doc) => (
             <DocumentCard
               key={doc.id}

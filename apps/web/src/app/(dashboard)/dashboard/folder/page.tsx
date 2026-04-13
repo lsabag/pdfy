@@ -56,7 +56,7 @@ function FolderContent() {
       {folder.documents?.length === 0 ? (
         <div className="text-center py-20"><p className="text-sm" style={{ color: "var(--color-text-secondary)" }}>This folder is empty</p></div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
           {folder.documents?.map((doc: any) => <DocumentCard key={doc.id} {...doc} />)}
         </div>
       )}

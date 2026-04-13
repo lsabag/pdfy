@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
-import { Search, Bell, Upload, LogOut, User, ChevronDown } from "lucide-react";
+import { Search, Bell, Upload, LogOut, User, ChevronDown, Menu } from "lucide-react";
 
-export function Topbar() {
+export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const [showMenu, setShowMenu] = useState(false);
@@ -24,6 +24,13 @@ export function Topbar() {
         borderBottom: "1px solid var(--color-border)",
       }}
     >
+      {/* Mobile menu button */}
+      {onMenuClick && (
+        <button onClick={onMenuClick} className="btn-icon lg:hidden mr-2">
+          <Menu size={18} />
+        </button>
+      )}
+
       {/* Search */}
       <div className="flex-1 max-w-lg">
         <div className="relative">

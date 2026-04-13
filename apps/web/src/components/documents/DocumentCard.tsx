@@ -179,9 +179,16 @@ export function DocumentCard({
               </span>
             </div>
           ) : thumbUrl ? (
-            <iframe src={thumbUrl} className="w-full h-full pointer-events-none"
-              style={{ border: "none", background: "white" }}
-              title={`Preview ${name}`} tabIndex={-1} />
+            <div className="w-full h-full overflow-hidden" style={{ background: "white" }}>
+              <iframe src={thumbUrl + "#toolbar=0&navpanes=0&scrollbar=0&view=FitH"}
+                className="pointer-events-none"
+                style={{
+                  border: "none", background: "white",
+                  width: "816px", height: "1056px",
+                  transform: "scale(0.22)", transformOrigin: "top left",
+                }}
+                title={`Preview ${name}`} tabIndex={-1} />
+            </div>
           ) : (
             <FileText size={48} strokeWidth={1} style={{ color: "var(--color-text-tertiary)" }} />
           )}

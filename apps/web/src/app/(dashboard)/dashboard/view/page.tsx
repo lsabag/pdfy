@@ -7,7 +7,7 @@ import {
   ChevronLeft, ChevronRight, Maximize, RotateCw,
   Trash2, Lock, Minimize2, FileOutput, FileImage,
   FileSpreadsheet, Pen, MessageSquare, Edit3,
-  Scissors, Merge, MoreHorizontal, FormInput,
+  Scissors, Merge, MoreHorizontal, FormInput, Undo,
 } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { SignatureModal } from "@/components/signatures/SignatureModal";
@@ -38,6 +38,9 @@ function ViewContent() {
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
+
+  // Version history for undo
+  const [versionHistory, setVersionHistory] = useState<string[]>([]); // blob URLs of previous versions
 
   // Signature placement state
   const [placingSignature, setPlacingSignature] = useState(false);
@@ -89,6 +92,27 @@ function ViewContent() {
     if (!docId) return;
     const { data } = await api.get(`/documents/${docId}/comments`);
     setComments(data);
+  };
+
+  // Reload PDF after an edit, saving current version for undo
+  const reloadPdf = async () => {
+    if (pdfBlobUrl) {
+      setVersionHistory((prev) => [...prev, pdfBlobUrl]);
+    }
+    const pdfRes = await api.get(`/documents/${docId}/download`, { responseType: "blob" });
+    const newUrl = URL.createObjectURL(pdfRes.data);
+    setPdfBlobUrl(newUrl);
+    const { data: freshDoc } = await api.get(`/documents/${docId}`);
+    setDocument(freshDoc);
+  };
+
+  const handleUndo = async () => {
+    if (versionHistory.length === 0) { alert("No previous version to undo to"); return; }
+    // For now, undo just reloads - full undo would need server-side version restore
+    const prevUrl = versionHistory[versionHistory.length - 1];
+    setVersionHistory((prev) => prev.slice(0, -1));
+    setPdfBlobUrl(prevUrl);
+    alert("Reverted to previous version (visual only). Use server version history for permanent undo.");
   };
 
   const handleAddComment = async () => {
@@ -229,6 +253,7 @@ function ViewContent() {
 
         {/* Right: actions */}
         <div className="flex items-center gap-1">
+          <TbBtn icon={Undo} label="Undo" onClick={handleUndo} />
           <TbBtn icon={RotateCw} label="Rotate" onClick={() => handleRotate(90)} />
           <TbBtn icon={MessageSquare} label="Comments" onClick={() => { setShowComments(!showComments); if (!showComments) loadComments(); }}
             active={showComments} />
@@ -322,11 +347,7 @@ function ViewContent() {
                   x: pdfX, y: pdfY,
                   width: sigSize.w * scaleX, height: sigSize.h * scaleY,
                 });
-                // Reload PDF
-                const pdfRes = await api.get(`/documents/${docId}/download`, { responseType: "blob" });
-                if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
-                setPdfBlobUrl(URL.createObjectURL(pdfRes.data));
-                setDocument({ ...document, version: document.version + 1 });
+                await reloadPdf();
                 setPlacingSignature(false); setSignatureImage(null); setSigPlaced(false);
               } catch (err: any) {
                 alert("Failed: " + (err.response?.data?.error || err.message));
