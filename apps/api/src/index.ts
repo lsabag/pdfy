@@ -25,8 +25,8 @@ function db(c: any) {
   return drizzle(c.env.DB, { schema });
 }
 
-// Helper: safely load a PDF from R2, returns { pdfDoc, error }
-async function loadPdfFromDoc(env: Env, doc: any): Promise<{ pdfDoc: any; error?: string }> {
+// Helper: safely load a PDF from R2. Auto-converts images to PDF.
+async function loadPdfFromDoc(env: Env, doc: any): Promise<{ pdfDoc: any; error?: string; converted?: boolean }> {
   const object = await env.STORAGE.get(doc.storageKey);
   if (!object) return { pdfDoc: null, error: 'File not found in storage' };
 
@@ -34,16 +34,36 @@ async function loadPdfFromDoc(env: Env, doc: any): Promise<{ pdfDoc: any; error?
   const bytes = new Uint8Array(buffer);
 
   // Check PDF magic bytes
-  if (bytes.length < 5 || bytes[0] !== 0x25 || bytes[1] !== 0x50 || bytes[2] !== 0x44 || bytes[3] !== 0x46) {
-    return { pdfDoc: null, error: 'This file is not a valid PDF. It may be an image or another file type.' };
+  const isPdf = bytes.length > 4 &&
+    bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
+
+  if (isPdf) {
+    try {
+      const pdfDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+      return { pdfDoc };
+    } catch (e) {
+      return { pdfDoc: null, error: 'Failed to parse PDF: ' + String(e) };
+    }
   }
 
-  try {
-    const pdfDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
-    return { pdfDoc };
-  } catch (e) {
-    return { pdfDoc: null, error: 'Failed to parse PDF: ' + String(e) };
+  // Not a PDF - try to detect if it's an image and auto-convert
+  const imageType = detectImageType(bytes);
+  if (imageType) {
+    try {
+      const { pdfBytes } = await imageToPdf(bytes, imageType);
+      const pdfDoc = await PDFDocument.load(pdfBytes);
+
+      // Save the converted PDF back to R2 so future operations work directly
+      const newKey = doc.storageKey.replace(/\.[^.]+$/, '.pdf');
+      await env.STORAGE.put(newKey, pdfBytes, { httpMetadata: { contentType: 'application/pdf' } });
+
+      return { pdfDoc, converted: true };
+    } catch (e) {
+      return { pdfDoc: null, error: 'File is an image but conversion to PDF failed: ' + String(e) };
+    }
   }
+
+  return { pdfDoc: null, error: 'This file is not a PDF or supported image type.' };
 }
 
 // Auth middleware
@@ -101,6 +121,35 @@ app.get('/api/auth/me', auth, async (c) => {
   return c.json(safe);
 });
 
+// Helper: embed an image buffer into a new single-page PDF, returns PDF bytes
+async function imageToPdf(imageBytes: Uint8Array, mimeType: string): Promise<{ pdfBytes: Uint8Array; width: number; height: number }> {
+  const pdfDoc = await PDFDocument.create();
+  let img;
+  if (mimeType === 'image/png' || mimeType.includes('png')) {
+    img = await pdfDoc.embedPng(imageBytes);
+  } else {
+    // jpg, jpeg, and anything else - try as JPEG
+    img = await pdfDoc.embedJpg(imageBytes);
+  }
+  const { width, height } = img.scale(1);
+  const page = pdfDoc.addPage([width, height]);
+  page.drawImage(img, { x: 0, y: 0, width, height });
+  const pdfBytes = await pdfDoc.save();
+  return { pdfBytes: new Uint8Array(pdfBytes), width, height };
+}
+
+// Detect if buffer is an image
+function detectImageType(bytes: Uint8Array): string | null {
+  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return 'image/png';
+  if (bytes[0] === 0xFF && bytes[1] === 0xD8) return 'image/jpeg';
+  if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return 'image/gif';
+  if (bytes[0] === 0x42 && bytes[1] === 0x4D) return 'image/bmp';
+  if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) return 'image/webp';
+  // TIFF
+  if ((bytes[0] === 0x49 && bytes[1] === 0x49) || (bytes[0] === 0x4D && bytes[1] === 0x4D)) return 'image/tiff';
+  return null;
+}
+
 // ═══════════════════════ DOCUMENTS ═══════════════════════
 app.post('/api/documents', auth, async (c) => {
   const user = c.get('user');
@@ -113,24 +162,38 @@ app.post('/api/documents', auth, async (c) => {
   const buffer = await file.arrayBuffer();
   const bytes = new Uint8Array(buffer);
 
-  // Validate: check if it's actually a PDF by checking magic bytes
+  // Detect file type by magic bytes
   const isPdf = bytes.length > 4 &&
-    bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46; // %PDF
+    bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
+  const imageType = !isPdf ? detectImageType(bytes) : null;
 
-  const mimeType = isPdf ? 'application/pdf' : file.type;
-  const ext = isPdf ? 'pdf' : (file.name.split('.').pop() || 'bin');
-  const storageKey = `documents/${user.id}/${id}/original.${ext}`;
-
-  await c.env.STORAGE.put(storageKey, buffer, { httpMetadata: { contentType: mimeType } });
-
-  // Get page count only for actual PDFs
+  let finalBuffer = buffer;
+  let mimeType = 'application/pdf';
   let pageCount = 0;
+
   if (isPdf) {
+    // Already a PDF
     try {
       const pdfDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
       pageCount = pdfDoc.getPageCount();
     } catch {}
+  } else if (imageType) {
+    // Image -> auto-convert to PDF
+    try {
+      const { pdfBytes } = await imageToPdf(bytes, imageType);
+      finalBuffer = pdfBytes.buffer as ArrayBuffer;
+      pageCount = 1;
+    } catch (convErr) {
+      // If conversion fails, store as-is but mark it
+      mimeType = imageType;
+    }
+  } else {
+    // Unknown file type - store as-is
+    mimeType = file.type || 'application/octet-stream';
   }
+
+  const storageKey = `documents/${user.id}/${id}/original.pdf`;
+  await c.env.STORAGE.put(storageKey, finalBuffer, { httpMetadata: { contentType: mimeType } });
 
   const d = db(c);
   const doc = {
@@ -316,8 +379,24 @@ async function getOwnedPdf(c: any, docId: string) {
   const d = db(c);
   const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, docId)).get();
   if (!doc || doc.ownerId !== user.id) return { error: 'Document not found', status: 404 };
-  const { pdfDoc, error } = await loadPdfFromDoc(c.env, doc);
+  const { pdfDoc, error, converted } = await loadPdfFromDoc(c.env, doc);
   if (error) return { error, status: 400 };
+
+  // If image was auto-converted to PDF, update the DB record
+  if (converted) {
+    const newKey = doc.storageKey.replace(/\.[^.]+$/, '.pdf');
+    const pageCount = pdfDoc.getPageCount();
+    await d.update(schema.documents).set({
+      storageKey: newKey,
+      mimeType: 'application/pdf',
+      pageCount,
+      updatedAt: new Date().toISOString(),
+    }).where(eq(schema.documents.id, docId));
+    doc.storageKey = newKey;
+    doc.mimeType = 'application/pdf';
+    doc.pageCount = pageCount;
+  }
+
   return { doc, pdfDoc, d, user };
 }
 
@@ -487,6 +566,44 @@ app.post('/api/documents/:id/optimize', auth, async (c) => {
     savedBytes: Math.max(0, saved),
     savedPercent: saved > 0 ? Math.round((saved / originalSize) * 100) : 0,
   });
+});
+
+// Convert image document to PDF (for documents that were uploaded before auto-convert)
+app.post('/api/documents/:id/convert-to-pdf', auth, async (c) => {
+  const user = c.get('user');
+  const d = db(c);
+  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
+  if (!doc || doc.ownerId !== user.id) return c.json({ error: 'Not found' }, 404);
+
+  const object = await c.env.STORAGE.get(doc.storageKey);
+  if (!object) return c.json({ error: 'File not found' }, 404);
+
+  const buffer = await object.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+
+  // Already a PDF?
+  const isPdf = bytes.length > 4 && bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46;
+  if (isPdf) return c.json({ message: 'Already a PDF', pageCount: doc.pageCount });
+
+  const imageType = detectImageType(bytes);
+  if (!imageType) return c.json({ error: 'File is not a supported image type' }, 400);
+
+  try {
+    const { pdfBytes } = await imageToPdf(bytes, imageType);
+    const newKey = `documents/${user.id}/${doc.id}/converted.pdf`;
+    await c.env.STORAGE.put(newKey, pdfBytes, { httpMetadata: { contentType: 'application/pdf' } });
+
+    const pdfDoc = await PDFDocument.load(pdfBytes);
+    await d.update(schema.documents).set({
+      storageKey: newKey, mimeType: 'application/pdf',
+      sizeBytes: pdfBytes.byteLength, pageCount: pdfDoc.getPageCount(),
+      version: doc.version + 1, updatedAt: new Date().toISOString(),
+    }).where(eq(schema.documents.id, doc.id));
+
+    return c.json({ message: 'Converted to PDF', pageCount: pdfDoc.getPageCount(), sizeBytes: pdfBytes.byteLength });
+  } catch (e) {
+    return c.json({ error: 'Conversion failed: ' + String(e) }, 500);
+  }
 });
 
 // ═══════════════════════ SHARING ═══════════════════════
