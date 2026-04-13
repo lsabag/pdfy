@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wrangler login:*)",
+      "Bash(curl -s \"https://cloudflare-dns.com/dns-query?name=pdfy.nextli.co.il&type=A\" -H \"accept: application/dns-json\")",
+      "Bash(python -m json.tool)",
+      "Bash(wrangler deploy:*)"
+    ]
+  }
+}
