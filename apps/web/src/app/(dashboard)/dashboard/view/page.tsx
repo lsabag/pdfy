@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft, Download, Share2, ZoomIn, ZoomOut,
@@ -29,6 +29,17 @@ export default function DocumentViewPage() {
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
 
+  // Signature placement state
+  const [placingSignature, setPlacingSignature] = useState(false);
+  const [signatureImage, setSignatureImage] = useState<string | null>(null);
+  const [sigPos, setSigPos] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [sigPlaced, setSigPlaced] = useState(false);
+  const pdfContainerRef = useRef<HTMLDivElement>(null);
+  const SIG_W = 180;
+  const SIG_H = 50;
+
   useEffect(() => {
     if (!docId) { router.push("/dashboard"); return; }
     (async () => {
@@ -44,6 +55,18 @@ export default function DocumentViewPage() {
     })();
     return () => { if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl); };
   }, [docId, router]);
+
+  // Drag handlers for signature placement
+  useEffect(() => {
+    if (!isDragging) return;
+    const onMove = (e: MouseEvent) => {
+      setSigPos({ x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y });
+    };
+    const onUp = () => setIsDragging(false);
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+  }, [isDragging, dragOffset]);
 
   const loadComments = async () => {
     if (!docId) return;
@@ -236,13 +259,126 @@ export default function DocumentViewPage() {
         </div>
       </div>
 
+      {/* Signature placement banner */}
+      {placingSignature && !sigPlaced && (
+        <div className="flex items-center justify-between px-4 py-2 flex-shrink-0"
+          style={{ background: "#E5F0FF", borderBottom: "1px solid #B3D4FF" }}>
+          <span className="text-sm font-medium" style={{ color: "var(--color-primary)" }}>
+            Click on the PDF to place your signature on page {currentPage}
+          </span>
+          <button className="btn btn-secondary text-sm h-8" onClick={() => {
+            setPlacingSignature(false); setSignatureImage(null); setSigPlaced(false);
+          }}>Cancel</button>
+        </div>
+      )}
+      {placingSignature && sigPlaced && (
+        <div className="flex items-center justify-between px-4 py-2 flex-shrink-0"
+          style={{ background: "#E3F8EE", borderBottom: "1px solid #A3E4C1" }}>
+          <span className="text-sm font-medium" style={{ color: "var(--color-success)" }}>
+            Drag to reposition. Click "Confirm" to stamp on page {currentPage}.
+          </span>
+          <div className="flex gap-2">
+            <button className="btn btn-secondary text-sm h-8" onClick={() => {
+              setPlacingSignature(false); setSignatureImage(null); setSigPlaced(false);
+            }}>Cancel</button>
+            <button className="btn btn-primary text-sm h-8" onClick={async () => {
+              if (!signatureImage || !pdfContainerRef.current) return;
+              // Convert screen position to PDF coordinates
+              const container = pdfContainerRef.current;
+              const iframe = container.querySelector("iframe");
+              if (!iframe) return;
+              const iframeRect = iframe.getBoundingClientRect();
+              const pdfW = 612; // standard PDF width in points
+              const pdfH = 792; // standard PDF height in points
+              const scaleX = pdfW / iframeRect.width;
+              const scaleY = pdfH / iframeRect.height;
+              const relX = (sigPos.x - iframeRect.left) * scaleX;
+              const relY = (sigPos.y - iframeRect.top) * scaleY;
+              // pdf-lib uses bottom-left origin
+              const pdfX = Math.max(0, relX);
+              const pdfY = Math.max(0, pdfH - relY - (SIG_H * scaleY));
+
+              try {
+                await api.post(`/documents/${docId}/apply-signature`, {
+                  signatureData: signatureImage,
+                  pageNumber: currentPage,
+                  x: pdfX, y: pdfY,
+                  width: SIG_W * scaleX, height: SIG_H * scaleY,
+                });
+                // Reload PDF
+                const pdfRes = await api.get(`/documents/${docId}/download`, { responseType: "blob" });
+                if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+                setPdfBlobUrl(URL.createObjectURL(pdfRes.data));
+                setDocument({ ...document, version: document.version + 1 });
+                setPlacingSignature(false); setSignatureImage(null); setSigPlaced(false);
+              } catch (err: any) {
+                alert("Failed: " + (err.response?.data?.error || err.message));
+              }
+            }}>Confirm Signature</button>
+          </div>
+        </div>
+      )}
+
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {/* PDF viewer */}
-        <div className="flex-1 overflow-auto flex items-start justify-center p-4" style={{ background: "#525659" }}>
+        <div ref={pdfContainerRef}
+          className="flex-1 overflow-auto flex items-start justify-center p-4 relative"
+          style={{ background: "#525659", cursor: placingSignature && !sigPlaced ? "crosshair" : "default" }}
+          onClick={(e) => {
+            if (placingSignature && !sigPlaced) {
+              setSigPos({ x: e.clientX - SIG_W / 2, y: e.clientY - SIG_H / 2 });
+              setSigPlaced(true);
+            }
+          }}>
           <iframe src={viewUrl} className="rounded-sm shadow-xl"
-            style={{ width: `${(816 * zoom) / 100}px`, height: `${(1056 * zoom) / 100}px`, maxWidth: "100%", border: "none", background: "white" }}
+            style={{
+              width: `${(816 * zoom) / 100}px`, height: `${(1056 * zoom) / 100}px`,
+              maxWidth: "100%", border: "none", background: "white",
+              pointerEvents: placingSignature ? "none" : "auto",
+            }}
             title={document.name} />
+
+          {/* Signature preview following cursor */}
+          {placingSignature && signatureImage && !sigPlaced && (
+            <img src={signatureImage} alt="signature"
+              className="fixed pointer-events-none opacity-70 border-2 border-dashed rounded"
+              style={{
+                width: SIG_W, height: SIG_H, borderColor: "var(--color-primary)",
+                left: "var(--sig-cursor-x, 50%)", top: "var(--sig-cursor-y, 50%)",
+                transform: "translate(-50%, -50%)",
+              }}
+              ref={(el) => {
+                if (!el) return;
+                const handler = (e: MouseEvent) => {
+                  el.style.left = e.clientX + "px";
+                  el.style.top = e.clientY + "px";
+                };
+                window.addEventListener("mousemove", handler);
+                (el as any).__cleanup = () => window.removeEventListener("mousemove", handler);
+                return () => { if ((el as any).__cleanup) (el as any).__cleanup(); };
+              }}
+            />
+          )}
+
+          {/* Placed signature - draggable */}
+          {placingSignature && sigPlaced && signatureImage && (
+            <img src={signatureImage} alt="placed signature"
+              className="fixed rounded shadow-lg cursor-grab active:cursor-grabbing select-none"
+              style={{
+                width: SIG_W, height: SIG_H,
+                left: sigPos.x, top: sigPos.y,
+                border: "2px solid var(--color-primary)",
+                background: "rgba(255,255,255,0.9)",
+                zIndex: 50,
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+                setDragOffset({ x: e.clientX - sigPos.x, y: e.clientY - sigPos.y });
+              }}
+            />
+          )}
         </div>
 
         {/* Comments panel */}
@@ -293,49 +429,12 @@ export default function DocumentViewPage() {
       <SignatureModal
         isOpen={showSignature}
         onClose={() => setShowSignature(false)}
-        onApply={async (signatureData) => {
-          // Ask user where to place the signature
-          const posChoice = prompt(
-            `Place signature on page ${currentPage}.\n\nChoose position:\n1 = Bottom right (default)\n2 = Bottom left\n3 = Bottom center\n4 = Top right\n5 = Custom (enter x,y)`,
-            "1"
-          );
-
-          let sigX = 350, sigY = 50; // default: bottom right
-          const sigW = 180, sigH = 50;
-
-          switch (posChoice?.trim()) {
-            case "2": sigX = 50; sigY = 50; break;        // bottom left
-            case "3": sigX = 200; sigY = 50; break;       // bottom center
-            case "4": sigX = 350; sigY = 720; break;      // top right
-            case "5": {
-              const custom = prompt("Enter position as x,y (e.g. 200,400):", "200,400");
-              if (custom) {
-                const [cx, cy] = custom.split(",").map(Number);
-                if (cx && cy) { sigX = cx; sigY = cy; }
-              }
-              break;
-            }
-          }
-
-          try {
-            await api.post(`/documents/${docId}/apply-signature`, {
-              signatureData,
-              pageNumber: currentPage,
-              x: sigX, y: sigY, width: sigW, height: sigH,
-            });
-            setShowSignature(false);
-
-            // Reload the PDF to show the stamped signature
-            const pdfRes = await api.get(`/documents/${docId}/download`, { responseType: "blob" });
-            if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
-            const newBlobUrl = URL.createObjectURL(pdfRes.data);
-            setPdfBlobUrl(newBlobUrl);
-            setDocument({ ...document, version: document.version + 1 });
-
-            alert(`Signature stamped on page ${currentPage}!`);
-          } catch (err: any) {
-            alert("Failed to apply signature: " + (err.response?.data?.error || err.message));
-          }
+        onApply={(signatureData) => {
+          // Enter placement mode - user clicks on PDF to place
+          setSignatureImage(signatureData);
+          setPlacingSignature(true);
+          setSigPlaced(false);
+          setShowSignature(false);
         }}
       />
 
