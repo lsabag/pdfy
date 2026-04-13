@@ -175,7 +175,7 @@ export function DocumentCard({
       {/* Thumbnail */}
       <Link href={`/dashboard/view?id=${id}`}>
         <div className="h-44 flex items-center justify-center"
-          style={{ background: thumbUrl ? "white" : "var(--color-surface-secondary)", overflow: "hidden", position: "relative" }}>
+          style={{ background: "white", overflow: "hidden", position: "relative" }}>
           {status === "PROCESSING" || optimizing ? (
             <div className="flex flex-col items-center gap-2">
               <div className="w-6 h-6 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
@@ -190,7 +190,7 @@ export function DocumentCard({
               <div style={{
                 width: "850px", height: "1100px",
                 transform: "scale(0.22)", transformOrigin: "top left",
-                position: "absolute", top: -5, left: -10,
+                position: "absolute", top: -8, left: -5,
               }}>
                 <iframe src={thumbUrl + "#toolbar=0&navpanes=0&scrollbar=0&view=FitH"}
                   className="pointer-events-none"
