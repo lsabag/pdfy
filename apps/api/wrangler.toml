@@ -4,7 +4,7 @@ compatibility_date = "2024-12-01"
 
 [vars]
 CORS_ORIGIN = "https://pdfy.nextli.co.il"
-JWT_SECRET = "change-me-in-dashboard"
+# JWT_SECRET is set via `wrangler secret put` - do NOT put it here
 
 [[d1_databases]]
 binding = "DB"

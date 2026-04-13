@@ -53,16 +53,37 @@ function ViewContent() {
   const [sigSize, setSigSize] = useState({ w: 180, h: 50 });
   const [isResizing, setIsResizing] = useState(false);
 
+  // Helper to download PDF as blob with auth, handling token issues
+  const downloadPdfBlob = async (id: string): Promise<string | null> => {
+    try {
+      const pdfRes = await api.get(`/documents/${id}/download`, { responseType: "blob" });
+      // Check if response is actually a PDF (not a JSON error wrapped in blob)
+      const blob = pdfRes.data as Blob;
+      if (blob.type === "application/json" || blob.size < 100) {
+        // Likely an error response, try to read it
+        const text = await blob.text();
+        if (text.includes("Unauthorized") || text.includes("error")) {
+          console.warn("PDF download auth failed, token may be expired");
+          // Try re-login: force user to re-authenticate
+          localStorage.removeItem("pdfy-token");
+          window.location.href = "/login";
+          return null;
+        }
+      }
+      return URL.createObjectURL(blob);
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
     if (!docId) { router.push("/dashboard"); return; }
     (async () => {
       try {
         const { data } = await api.get(`/documents/${docId}`);
         setDocument(data);
-        // Fetch PDF as blob so we can display it in iframe (iframe can't send auth headers)
-        const pdfRes = await api.get(`/documents/${docId}/download`, { responseType: "blob" });
-        const blobUrl = URL.createObjectURL(pdfRes.data);
-        setPdfBlobUrl(blobUrl);
+        const blobUrl = await downloadPdfBlob(docId);
+        if (blobUrl) setPdfBlobUrl(blobUrl);
       } catch { router.push("/dashboard"); }
       finally { setLoading(false); }
     })();
@@ -99,9 +120,8 @@ function ViewContent() {
     if (pdfBlobUrl) {
       setVersionHistory((prev) => [...prev, pdfBlobUrl]);
     }
-    const pdfRes = await api.get(`/documents/${docId}/download`, { responseType: "blob" });
-    const newUrl = URL.createObjectURL(pdfRes.data);
-    setPdfBlobUrl(newUrl);
+    const newUrl = await downloadPdfBlob(docId!);
+    if (newUrl) setPdfBlobUrl(newUrl);
     const { data: freshDoc } = await api.get(`/documents/${docId}`);
     setDocument(freshDoc);
   };

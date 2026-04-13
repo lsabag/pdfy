@@ -82,7 +82,10 @@ export function DocumentCard({
     (async () => {
       try {
         const res = await api.get(`/documents/${id}/download`, { responseType: "blob" });
-        if (!cancelled) setThumbUrl(URL.createObjectURL(res.data));
+        const blob = res.data as Blob;
+        // Skip if response is an error (JSON, not PDF)
+        if (blob.type === "application/json" || blob.size < 100) return;
+        if (!cancelled) setThumbUrl(URL.createObjectURL(blob));
       } catch {}
     })();
     return () => { cancelled = true; };
