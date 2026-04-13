@@ -3,18 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  FileText,
-  FolderOpen,
-  Star,
-  Share2,
-  Trash2,
-  Settings,
-  Shield,
-  Clock,
+  FileText, FolderOpen, Star, Share2, Trash2, Settings, Shield, Clock,
+  Edit3, ArrowLeftRight, PenTool, Wrench,
 } from "lucide-react";
 
 const navItems = [
-  { href: "/dashboard", label: "Documents", icon: FileText },
+  { href: "/dashboard", label: "Home", icon: FileText },
+  { href: "/dashboard/edit", label: "Edit", icon: Edit3 },
+  { href: "/dashboard/convert", label: "Convert", icon: ArrowLeftRight },
+  { href: "/dashboard/esign", label: "E-Sign", icon: PenTool },
+  { href: "/dashboard/tools", label: "All tools", icon: Wrench },
+];
+
+const docItems = [
   { href: "/dashboard/folders", label: "Folders", icon: FolderOpen },
   { href: "/dashboard/favorites", label: "Favorites", icon: Star },
   { href: "/dashboard/shared", label: "Shared", icon: Share2 },
@@ -50,91 +51,10 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-2">
-        <div className="flex flex-col gap-0.5">
-          {navItems.map((item) => {
-            const isActive =
-              item.href === "/dashboard"
-                ? pathname === "/dashboard"
-                : pathname.startsWith(item.href);
-            const Icon = item.icon;
+        <NavGroup items={navItems} pathname={pathname} />
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-                style={{
-                  color: isActive
-                    ? "var(--color-sidebar-text-active)"
-                    : "var(--color-sidebar-text)",
-                  background: isActive
-                    ? "var(--color-sidebar-active)"
-                    : "transparent",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.background =
-                      "var(--color-sidebar-hover)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.background = "transparent";
-                  }
-                }}
-              >
-                <Icon size={18} strokeWidth={1.8} />
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-
-        {/* Admin section */}
-        <div className="mt-6 pt-4" style={{ borderTop: "1px solid var(--color-sidebar-hover)" }}>
-          <p
-            className="px-3 mb-2 text-xs font-semibold uppercase tracking-wider"
-            style={{ color: "var(--color-sidebar-text)" }}
-          >
-            Admin
-          </p>
-          <div className="flex flex-col gap-0.5">
-            {adminItems.map((item) => {
-              const isActive = pathname.startsWith(item.href);
-              const Icon = item.icon;
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors"
-                  style={{
-                    color: isActive
-                      ? "var(--color-sidebar-text-active)"
-                      : "var(--color-sidebar-text)",
-                    background: isActive
-                      ? "var(--color-sidebar-active)"
-                      : "transparent",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.background =
-                        "var(--color-sidebar-hover)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.background = "transparent";
-                    }
-                  }}
-                >
-                  <Icon size={18} strokeWidth={1.8} />
-                  {item.label}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
+        <NavSection title="Documents" items={docItems} pathname={pathname} />
+        <NavSection title="Admin" items={adminItems} pathname={pathname} />
       </nav>
 
       {/* Storage usage */}
@@ -151,5 +71,42 @@ export function Sidebar() {
         </div>
       </div>
     </aside>
+  );
+}
+
+function NavItem({ href, icon: Icon, label, pathname }: { href: string; icon: any; label: string; pathname: string }) {
+  const isActive = href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
+  return (
+    <Link href={href}
+      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+      style={{
+        color: isActive ? "var(--color-sidebar-text-active)" : "var(--color-sidebar-text)",
+        background: isActive ? "var(--color-sidebar-active)" : "transparent",
+      }}
+      onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = "var(--color-sidebar-hover)"; }}
+      onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = "transparent"; }}>
+      <Icon size={17} strokeWidth={1.8} />
+      {label}
+    </Link>
+  );
+}
+
+function NavGroup({ items, pathname }: { items: typeof navItems; pathname: string }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      {items.map((item) => <NavItem key={item.href} {...item} pathname={pathname} />)}
+    </div>
+  );
+}
+
+function NavSection({ title, items, pathname }: { title: string; items: typeof navItems; pathname: string }) {
+  return (
+    <div className="mt-4 pt-3" style={{ borderTop: "1px solid var(--color-sidebar-hover)" }}>
+      <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest"
+        style={{ color: "var(--color-sidebar-text)", opacity: 0.6 }}>{title}</p>
+      <div className="flex flex-col gap-0.5">
+        {items.map((item) => <NavItem key={item.href} {...item} pathname={pathname} />)}
+      </div>
+    </div>
   );
 }
