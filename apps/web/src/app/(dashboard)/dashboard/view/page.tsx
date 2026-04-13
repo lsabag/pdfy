@@ -294,16 +294,47 @@ export default function DocumentViewPage() {
         isOpen={showSignature}
         onClose={() => setShowSignature(false)}
         onApply={async (signatureData) => {
+          // Ask user where to place the signature
+          const posChoice = prompt(
+            `Place signature on page ${currentPage}.\n\nChoose position:\n1 = Bottom right (default)\n2 = Bottom left\n3 = Bottom center\n4 = Top right\n5 = Custom (enter x,y)`,
+            "1"
+          );
+
+          let sigX = 350, sigY = 50; // default: bottom right
+          const sigW = 180, sigH = 50;
+
+          switch (posChoice?.trim()) {
+            case "2": sigX = 50; sigY = 50; break;        // bottom left
+            case "3": sigX = 200; sigY = 50; break;       // bottom center
+            case "4": sigX = 350; sigY = 720; break;      // top right
+            case "5": {
+              const custom = prompt("Enter position as x,y (e.g. 200,400):", "200,400");
+              if (custom) {
+                const [cx, cy] = custom.split(",").map(Number);
+                if (cx && cy) { sigX = cx; sigY = cy; }
+              }
+              break;
+            }
+          }
+
           try {
             await api.post(`/documents/${docId}/apply-signature`, {
               signatureData,
               pageNumber: currentPage,
-              x: 100, y: 600, width: 200, height: 60,
+              x: sigX, y: sigY, width: sigW, height: sigH,
             });
             setShowSignature(false);
-            alert(`Signature applied to page ${currentPage}!`);
-          } catch {
-            alert("Failed to apply signature");
+
+            // Reload the PDF to show the stamped signature
+            const pdfRes = await api.get(`/documents/${docId}/download`, { responseType: "blob" });
+            if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+            const newBlobUrl = URL.createObjectURL(pdfRes.data);
+            setPdfBlobUrl(newBlobUrl);
+            setDocument({ ...document, version: document.version + 1 });
+
+            alert(`Signature stamped on page ${currentPage}!`);
+          } catch (err: any) {
+            alert("Failed to apply signature: " + (err.response?.data?.error || err.message));
           }
         }}
       />

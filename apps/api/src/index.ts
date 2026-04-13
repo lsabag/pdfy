@@ -668,20 +668,66 @@ app.post('/api/documents/:id/apply-signature', auth, async (c) => {
   const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
   if (!doc || doc.ownerId !== user.id) return c.json({ error: 'Not found' }, 404);
 
+  const object = await c.env.STORAGE.get(doc.storageKey);
+  if (!object) return c.json({ error: 'File not found' }, 404);
+
+  // Load the PDF
+  const pdfDoc = await PDFDocument.load(await object.arrayBuffer());
+  const pageCount = pdfDoc.getPageCount();
+  const pageIdx = pageNumber - 1;
+  if (pageIdx < 0 || pageIdx >= pageCount) return c.json({ error: 'Invalid page number' }, 400);
+
+  // Extract the base64 PNG image from the signature data
+  // signatureData is "data:image/png;base64,iVBOR..."
+  const base64Match = signatureData.match(/^data:image\/png;base64,(.+)$/);
+  if (!base64Match) return c.json({ error: 'Invalid signature data, expected base64 PNG' }, 400);
+
+  const pngBytes = Uint8Array.from(atob(base64Match[1]), (ch) => ch.charCodeAt(0));
+  const pngImage = await pdfDoc.embedPng(pngBytes);
+
+  // Get the target page and its dimensions
+  const page = pdfDoc.getPage(pageIdx);
+  const { width: pageWidth, height: pageHeight } = page.getSize();
+
+  // Place the signature - x,y are percentages from top-left in the UI
+  // pdf-lib uses bottom-left origin, so flip Y
+  const sigWidth = width || 200;
+  const sigHeight = height || 60;
+  const sigX = x || 100;
+  // Convert from top-origin Y to bottom-origin Y
+  const sigY = pageHeight - (y || 100) - sigHeight;
+
+  page.drawImage(pngImage, {
+    x: sigX,
+    y: sigY,
+    width: sigWidth,
+    height: sigHeight,
+  });
+
+  // Save the modified PDF
+  const newBuffer = await pdfDoc.save();
+  const newKey = `documents/${user.id}/${doc.id}/current.pdf`;
+  await c.env.STORAGE.put(newKey, newBuffer, { httpMetadata: { contentType: 'application/pdf' } });
+
+  // Update document record
+  await d.update(schema.documents).set({
+    storageKey: newKey,
+    sizeBytes: newBuffer.byteLength,
+    version: doc.version + 1,
+    updatedAt: new Date().toISOString(),
+  }).where(eq(schema.documents.id, doc.id));
+
   // Record the signature placement
   const sigId = uid();
   await d.insert(schema.signatures).values({
     id: sigId, documentId: doc.id, signerId: user.id,
     signatureData, pageNumber,
-    position: { x, y, width, height },
+    position: { x: sigX, y: sigY, width: sigWidth, height: sigHeight },
     ipAddress: c.req.header('CF-Connecting-IP') || 'unknown',
     userAgent: c.req.header('User-Agent') || 'unknown',
   });
 
-  // TODO: In a full implementation, we'd use pdf-lib to stamp the signature image
-  // onto the actual PDF. For now we record the placement metadata.
-
-  return c.json({ id: sigId, message: 'Signature applied' }, 201);
+  return c.json({ id: sigId, page: pageNumber, message: 'Signature stamped on PDF' }, 201);
 });
 
 // ═══════════════════════ FORM FILLING ═══════════════════════
