@@ -153,32 +153,54 @@ export default function DocumentViewPage() {
         </div>
 
         {/* Center: zoom + page nav */}
-        <div className="flex items-center gap-1">
-          <button className="btn btn-ghost w-8 h-8 p-0" onClick={() => setZoom((z) => Math.max(25, z - 25))}><ZoomOut size={15} /></button>
-          <span className="text-xs w-10 text-center" style={{ color: "var(--color-text-secondary)" }}>{zoom}%</span>
-          <button className="btn btn-ghost w-8 h-8 p-0" onClick={() => setZoom((z) => Math.min(400, z + 25))}><ZoomIn size={15} /></button>
+        <div className="flex items-center gap-0.5 px-2 py-1 rounded-lg" style={{ background: "var(--color-surface-secondary)" }}>
+          <button className="w-7 h-7 flex items-center justify-center rounded-md transition-colors"
+            style={{ color: "var(--color-text-primary)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            onClick={() => setZoom((z) => Math.max(25, z - 25))}><ZoomOut size={15} /></button>
+          <span className="text-xs w-10 text-center font-medium" style={{ color: "var(--color-text-primary)" }}>{zoom}%</span>
+          <button className="w-7 h-7 flex items-center justify-center rounded-md transition-colors"
+            style={{ color: "var(--color-text-primary)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+            onClick={() => setZoom((z) => Math.min(400, z + 25))}><ZoomIn size={15} /></button>
+
           <div className="w-px h-4 mx-1" style={{ background: "var(--color-border)" }} />
-          <button className="btn btn-ghost w-7 h-7 p-0" disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => p - 1)}><ChevronLeft size={15} /></button>
+
+          <button className="w-7 h-7 flex items-center justify-center rounded-md transition-colors disabled:opacity-30"
+            style={{ color: "var(--color-text-primary)" }}
+            disabled={currentPage <= 1} onClick={() => setCurrentPage((p) => p - 1)}><ChevronLeft size={15} /></button>
           <input type="number" min={1} max={document.pageCount || 1} value={currentPage}
             onChange={(e) => setCurrentPage(Math.min(document.pageCount, Math.max(1, Number(e.target.value))))}
-            className="w-10 text-center text-xs h-7 rounded-md" style={{ background: "var(--color-surface-secondary)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
-          <span className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>/ {document.pageCount}</span>
-          <button className="btn btn-ghost w-7 h-7 p-0" disabled={currentPage >= (document.pageCount || 1)} onClick={() => setCurrentPage((p) => p + 1)}><ChevronRight size={15} /></button>
+            className="w-10 text-center text-xs h-7 rounded-md font-medium"
+            style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", color: "var(--color-text-primary)" }} />
+          <span className="text-xs font-medium" style={{ color: "var(--color-text-secondary)" }}>/ {document.pageCount}</span>
+          <button className="w-7 h-7 flex items-center justify-center rounded-md transition-colors disabled:opacity-30"
+            style={{ color: "var(--color-text-primary)" }}
+            disabled={currentPage >= (document.pageCount || 1)} onClick={() => setCurrentPage((p) => p + 1)}><ChevronRight size={15} /></button>
         </div>
 
         {/* Right: actions */}
-        <div className="flex items-center gap-0.5">
-          <button className="btn btn-ghost w-8 h-8 p-0" onClick={() => handleRotate(90)} title="Rotate page"><RotateCw size={15} /></button>
-          <button className="btn btn-ghost w-8 h-8 p-0" onClick={() => { setShowComments(!showComments); if (!showComments) loadComments(); }}
-            title="Comments"><MessageSquare size={15} /></button>
-          <button className="btn btn-ghost w-8 h-8 p-0" onClick={() => setShowSignature(true)} title="Sign"><Pen size={15} /></button>
-          <button className="btn btn-ghost w-8 h-8 p-0" onClick={() => setShowFormFiller(true)} title="Fill form"><FormInput size={15} /></button>
-          <button className="btn btn-ghost w-8 h-8 p-0" onClick={handleShare} title="Share"><Share2 size={15} /></button>
-          <button className="btn btn-ghost w-8 h-8 p-0" onClick={handleDownload} title="Download"><Download size={15} /></button>
+        <div className="flex items-center gap-1">
+          <TbBtn icon={RotateCw} label="Rotate" onClick={() => handleRotate(90)} />
+          <TbBtn icon={MessageSquare} label="Comments" onClick={() => { setShowComments(!showComments); if (!showComments) loadComments(); }}
+            active={showComments} />
+          <TbBtn icon={Pen} label="Sign" onClick={() => setShowSignature(true)} />
+          <TbBtn icon={FormInput} label="Fill form" onClick={() => setShowFormFiller(true)} />
+
+          <div className="w-px h-5 mx-0.5" style={{ background: "var(--color-border)" }} />
+
+          <TbBtn icon={Share2} label="Share" onClick={handleShare} />
+          <TbBtn icon={Download} label="Download" onClick={handleDownload} />
 
           {/* More tools dropdown */}
           <div className="relative">
-            <button className="btn btn-ghost w-8 h-8 p-0" onClick={() => setShowTools(!showTools)}><MoreHorizontal size={15} /></button>
+            <button className="flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors"
+              style={{ color: "var(--color-text-primary)", background: showTools ? "var(--color-surface-secondary)" : "transparent", border: "1px solid var(--color-border)" }}
+              onClick={() => setShowTools(!showTools)}>
+              <MoreHorizontal size={14} /> More
+            </button>
             {showTools && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowTools(false)} />
@@ -293,6 +315,33 @@ export default function DocumentViewPage() {
   );
 }
 
+// Toolbar button with visible icon + label
+function TbBtn({ icon: Icon, label, onClick, active }: {
+  icon: any; label: string; onClick: () => void; active?: boolean;
+}) {
+  return (
+    <button
+      className="flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-medium transition-colors"
+      style={{
+        color: active ? "var(--color-primary)" : "var(--color-text-primary)",
+        background: active ? "var(--color-primary-light)" : "transparent",
+      }}
+      onClick={onClick}
+      title={label}
+      onMouseEnter={(e) => {
+        if (!active) e.currentTarget.style.background = "var(--color-surface-secondary)";
+      }}
+      onMouseLeave={(e) => {
+        if (!active) e.currentTarget.style.background = "transparent";
+      }}
+    >
+      <Icon size={14} />
+      <span className="hidden lg:inline">{label}</span>
+    </button>
+  );
+}
+
+// Dropdown menu item
 function ToolItem({ icon: Icon, label, onClick, danger }: {
   icon: any; label: string; onClick: () => void; danger?: boolean;
 }) {
