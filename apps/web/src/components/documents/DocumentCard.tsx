@@ -189,8 +189,8 @@ export function DocumentCard({
             }}>
               <div style={{
                 width: "850px", height: "1100px",
-                transform: "scale(0.22)", transformOrigin: "top left",
-                position: "absolute", top: -8, left: -5,
+                transform: "scale(0.25)", transformOrigin: "top left",
+                position: "absolute", top: -6, left: -3,
               }}>
                 <iframe src={thumbUrl + "#toolbar=0&navpanes=0&scrollbar=0&view=FitH"}
                   className="pointer-events-none"
