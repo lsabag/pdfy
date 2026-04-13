@@ -167,7 +167,7 @@ export function DocumentCard({
   return (
     <div
       className="group rounded-xl overflow-hidden transition-shadow hover:shadow-[var(--shadow-md)]"
-      style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-light)" }}
+      style={{ background: "var(--color-surface)", boxShadow: "0 0 0 1px var(--color-border-light)" }}
       onContextMenu={handleContextMenu}
       draggable
       onDragStart={(e) => { e.dataTransfer.setData("text/docId", id); }}
