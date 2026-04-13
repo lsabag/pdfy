@@ -177,7 +177,7 @@ export function DocumentCard({
         <div className="h-44 flex items-center justify-center"
           style={{ background: "white", overflow: "hidden", position: "relative", borderRadius: "11px 11px 0 0" }}>
           {/* White overlay to mask any PDF viewer border artifacts at corners */}
-          {thumbUrl && <div style={{ position: "absolute", inset: 0, borderRadius: "inherit", boxShadow: "inset 0 0 0 2px white", zIndex: 2, pointerEvents: "none" }} />}
+          {thumbUrl && <div style={{ position: "absolute", inset: 0, borderRadius: "inherit", boxShadow: "inset 0 0 0 5px white", zIndex: 2, pointerEvents: "none" }} />}
           {status === "PROCESSING" || optimizing ? (
             <div className="flex flex-col items-center gap-2">
               <div className="w-6 h-6 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
