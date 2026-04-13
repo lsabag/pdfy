@@ -73,7 +73,7 @@ export function DocumentCard({
       }}
     >
       {/* Thumbnail area */}
-      <Link href={`/dashboard/documents/${id}`}>
+      <Link href={`/dashboard/view?id=${id}`}>
         <div
           className="h-44 flex items-center justify-center relative"
           style={{ background: "var(--color-surface-secondary)" }}
@@ -116,7 +116,7 @@ export function DocumentCard({
       <div className="p-3">
         <div className="flex items-start justify-between gap-2">
           <Link
-            href={`/dashboard/documents/${id}`}
+            href={`/dashboard/view?id=${id}`}
             className="flex-1 min-w-0"
           >
             <h3

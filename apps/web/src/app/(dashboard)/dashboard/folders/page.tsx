@@ -85,7 +85,7 @@ export default function FoldersPage() {
           {folders.map((folder) => (
             <Link
               key={folder.id}
-              href={`/dashboard/folders/${folder.id}`}
+              href={`/dashboard/folder?id=${folder.id}`}
               className="group rounded-xl p-4 transition-shadow hover:shadow-[var(--shadow-md)]"
               style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-light)" }}
             >

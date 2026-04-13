@@ -186,7 +186,7 @@ export default function DashboardPage() {
                     (e.currentTarget.style.background = "transparent")
                   }
                   onClick={() =>
-                    (window.location.href = `/dashboard/documents/${doc.id}`)
+                    (window.location.href = `/dashboard/view?id=${doc.id}`)
                   }
                 >
                   <td className="px-4 py-3">
