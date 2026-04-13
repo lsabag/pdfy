@@ -679,11 +679,27 @@ app.post('/api/documents/:id/apply-signature', auth, async (c) => {
 
   // Extract the base64 PNG image from the signature data
   // signatureData is "data:image/png;base64,iVBOR..."
-  const base64Match = signatureData.match(/^data:image\/png;base64,(.+)$/);
-  if (!base64Match) return c.json({ error: 'Invalid signature data, expected base64 PNG' }, 400);
+  let base64Data: string;
+  if (signatureData.includes('base64,')) {
+    base64Data = signatureData.split('base64,')[1];
+  } else {
+    base64Data = signatureData;
+  }
+  if (!base64Data) return c.json({ error: 'Invalid signature data' }, 400);
 
-  const pngBytes = Uint8Array.from(atob(base64Match[1]), (ch) => ch.charCodeAt(0));
-  const pngImage = await pdfDoc.embedPng(pngBytes);
+  // Decode base64 to bytes (Workers-compatible)
+  const binaryString = atob(base64Data.replace(/\s/g, ''));
+  const pngBytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    pngBytes[i] = binaryString.charCodeAt(i);
+  }
+
+  let pngImage;
+  try {
+    pngImage = await pdfDoc.embedPng(pngBytes);
+  } catch (embedError) {
+    return c.json({ error: 'Failed to embed signature image: ' + String(embedError) }, 400);
+  }
 
   // Get the target page and its dimensions
   const page = pdfDoc.getPage(pageIdx);

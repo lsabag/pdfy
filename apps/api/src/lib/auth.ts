@@ -3,19 +3,29 @@ import type { Context } from 'hono';
 // Simple JWT-like token using Web Crypto (Workers-compatible)
 export async function hashPassword(password: string): Promise<string> {
   const encoder = new TextEncoder();
-  const data = encoder.encode(password + 'pdfy-salt-v1');
-  const hash = await crypto.subtle.digest('SHA-256', data);
-  // Add iterations for security
-  let result = hash;
-  for (let i = 0; i < 10000; i++) {
-    result = await crypto.subtle.digest('SHA-256', result);
-  }
-  return btoa(String.fromCharCode(...new Uint8Array(result)));
+  // Use PBKDF2 for efficient password hashing within Workers CPU limits
+  const keyMaterial = await crypto.subtle.importKey(
+    'raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits'],
+  );
+  const hash = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: encoder.encode('pdfy-salt-v1'), iterations: 100000, hash: 'SHA-256' },
+    keyMaterial, 256,
+  );
+  return btoa(String.fromCharCode(...new Uint8Array(hash)));
 }
 
-export async function verifyPassword(password: string, hash: string): Promise<boolean> {
+export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
   const computed = await hashPassword(password);
-  return computed === hash;
+  if (computed === storedHash) return true;
+  // Fallback: check old SHA-256 loop hashes for existing users
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + 'pdfy-salt-v1');
+  let result = await crypto.subtle.digest('SHA-256', data);
+  for (let i = 0; i < 100; i++) {
+    result = await crypto.subtle.digest('SHA-256', result);
+  }
+  const oldHash = btoa(String.fromCharCode(...new Uint8Array(result)));
+  return oldHash === storedHash;
 }
 
 export async function createToken(
