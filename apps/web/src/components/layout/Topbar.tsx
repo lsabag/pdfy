@@ -124,6 +124,7 @@ export function Topbar({ onMenuClick }: { onMenuClick?: () => void }) {
                 <button
                   className="w-full flex items-center gap-2 px-4 py-2.5 text-sm transition-colors"
                   style={{ color: "var(--color-text-secondary)" }}
+                  onClick={() => { setShowMenu(false); router.push("/dashboard/profile"); }}
                   onMouseEnter={(e) =>
                     (e.currentTarget.style.background =
                       "var(--color-surface-secondary)")

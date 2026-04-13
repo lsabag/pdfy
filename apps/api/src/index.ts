@@ -121,6 +121,57 @@ app.get('/api/auth/me', auth, async (c) => {
   return c.json(safe);
 });
 
+// Update profile
+app.patch('/api/auth/profile', auth, async (c) => {
+  const user = c.get('user');
+  const { name, email } = await c.req.json();
+  const d = db(c);
+  const updates: any = { updatedAt: new Date().toISOString() };
+  if (name) updates.name = name;
+  if (email) {
+    const existing = await d.select().from(schema.users).where(eq(schema.users.email, email)).get();
+    if (existing && existing.id !== user.id) return c.json({ error: 'Email already in use' }, 409);
+    updates.email = email;
+  }
+  await d.update(schema.users).set(updates).where(eq(schema.users.id, user.id));
+  const updated = await d.select().from(schema.users).where(eq(schema.users.id, user.id)).get();
+  if (!updated) return c.json({ error: 'Not found' }, 404);
+  const { passwordHash, ...safe } = updated;
+  return c.json(safe);
+});
+
+// Change password
+app.post('/api/auth/change-password', auth, async (c) => {
+  const user = c.get('user');
+  const { currentPassword, newPassword } = await c.req.json();
+  if (!currentPassword || !newPassword) return c.json({ error: 'Both passwords required' }, 400);
+  if (newPassword.length < 8) return c.json({ error: 'Password must be at least 8 characters' }, 400);
+
+  const d = db(c);
+  const u = await d.select().from(schema.users).where(eq(schema.users.id, user.id)).get();
+  if (!u) return c.json({ error: 'Not found' }, 404);
+
+  const valid = await verifyPassword(currentPassword, u.passwordHash);
+  if (!valid) return c.json({ error: 'Current password is incorrect' }, 401);
+
+  const newHash = await hashPassword(newPassword);
+  await d.update(schema.users).set({ passwordHash: newHash }).where(eq(schema.users.id, user.id));
+  return c.json({ message: 'Password changed successfully' });
+});
+
+// Delete account
+app.delete('/api/auth/account', auth, async (c) => {
+  const user = c.get('user');
+  const { password } = await c.req.json();
+  const d = db(c);
+  const u = await d.select().from(schema.users).where(eq(schema.users.id, user.id)).get();
+  if (!u) return c.json({ error: 'Not found' }, 404);
+  const valid = await verifyPassword(password, u.passwordHash);
+  if (!valid) return c.json({ error: 'Incorrect password' }, 401);
+  await d.update(schema.users).set({ isActive: false }).where(eq(schema.users.id, user.id));
+  return c.json({ message: 'Account deactivated' });
+});
+
 // Helper: embed an image buffer into a new single-page PDF, returns PDF bytes
 async function imageToPdf(imageBytes: Uint8Array, mimeType: string): Promise<{ pdfBytes: Uint8Array; width: number; height: number }> {
   const pdfDoc = await PDFDocument.create();
