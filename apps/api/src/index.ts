@@ -25,6 +25,27 @@ function db(c: any) {
   return drizzle(c.env.DB, { schema });
 }
 
+// Helper: safely load a PDF from R2, returns { pdfDoc, error }
+async function loadPdfFromDoc(env: Env, doc: any): Promise<{ pdfDoc: any; error?: string }> {
+  const object = await env.STORAGE.get(doc.storageKey);
+  if (!object) return { pdfDoc: null, error: 'File not found in storage' };
+
+  const buffer = await object.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+
+  // Check PDF magic bytes
+  if (bytes.length < 5 || bytes[0] !== 0x25 || bytes[1] !== 0x50 || bytes[2] !== 0x44 || bytes[3] !== 0x46) {
+    return { pdfDoc: null, error: 'This file is not a valid PDF. It may be an image or another file type.' };
+  }
+
+  try {
+    const pdfDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+    return { pdfDoc };
+  } catch (e) {
+    return { pdfDoc: null, error: 'Failed to parse PDF: ' + String(e) };
+  }
+}
+
 // Auth middleware
 async function auth(c: any, next: any) {
   const header = c.req.header('Authorization');
@@ -89,24 +110,34 @@ app.post('/api/documents', auth, async (c) => {
   if (!file) return c.json({ error: 'No file provided' }, 400);
 
   const id = uid();
-  const storageKey = `documents/${user.id}/${id}/original.pdf`;
   const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
 
-  await c.env.STORAGE.put(storageKey, buffer, { httpMetadata: { contentType: file.type } });
+  // Validate: check if it's actually a PDF by checking magic bytes
+  const isPdf = bytes.length > 4 &&
+    bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46; // %PDF
 
-  // Get page count
+  const mimeType = isPdf ? 'application/pdf' : file.type;
+  const ext = isPdf ? 'pdf' : (file.name.split('.').pop() || 'bin');
+  const storageKey = `documents/${user.id}/${id}/original.${ext}`;
+
+  await c.env.STORAGE.put(storageKey, buffer, { httpMetadata: { contentType: mimeType } });
+
+  // Get page count only for actual PDFs
   let pageCount = 0;
-  try {
-    const pdfDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
-    pageCount = pdfDoc.getPageCount();
-  } catch {}
+  if (isPdf) {
+    try {
+      const pdfDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+      pageCount = pdfDoc.getPageCount();
+    } catch {}
+  }
 
   const d = db(c);
   const doc = {
     id,
     name: file.name.replace(/\.[^/.]+$/, ''),
     originalName: file.name,
-    mimeType: file.type,
+    mimeType,
     sizeBytes: file.size,
     pageCount,
     status: 'READY' as const,
@@ -279,17 +310,22 @@ app.delete('/api/folders/:id', auth, async (c) => {
 });
 
 // ═══════════════════════ PDF OPS ═══════════════════════
-app.post('/api/documents/:id/pages/reorder', auth, async (c) => {
+// Helper: load doc + verify owner + load PDF safely
+async function getOwnedPdf(c: any, docId: string) {
   const user = c.get('user');
-  const { pageOrder } = await c.req.json();
   const d = db(c);
-  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
-  if (!doc || doc.ownerId !== user.id) return c.json({ error: 'Not found' }, 404);
+  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, docId)).get();
+  if (!doc || doc.ownerId !== user.id) return { error: 'Document not found', status: 404 };
+  const { pdfDoc, error } = await loadPdfFromDoc(c.env, doc);
+  if (error) return { error, status: 400 };
+  return { doc, pdfDoc, d, user };
+}
 
-  const object = await c.env.STORAGE.get(doc.storageKey);
-  if (!object) return c.json({ error: 'File not found' }, 404);
-  const pdfBuffer = await object.arrayBuffer();
-  const pdfDoc = await PDFDocument.load(pdfBuffer);
+app.post('/api/documents/:id/pages/reorder', auth, async (c) => {
+  const { pageOrder } = await c.req.json();
+  const result = await getOwnedPdf(c, c.req.param('id'));
+  if ('error' in result && !('pdfDoc' in result)) return c.json({ error: result.error }, result.status);
+  const { doc, pdfDoc, d, user } = result as any;
 
   const newPdf = await PDFDocument.create();
   for (const idx of pageOrder) {
@@ -306,15 +342,10 @@ app.post('/api/documents/:id/pages/reorder', auth, async (c) => {
 });
 
 app.post('/api/documents/:id/pages/rotate', auth, async (c) => {
-  const user = c.get('user');
   const { pages } = await c.req.json();
-  const d = db(c);
-  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
-  if (!doc || doc.ownerId !== user.id) return c.json({ error: 'Not found' }, 404);
-
-  const object = await c.env.STORAGE.get(doc.storageKey);
-  if (!object) return c.json({ error: 'File not found' }, 404);
-  const pdfDoc = await PDFDocument.load(await object.arrayBuffer());
+  const result = await getOwnedPdf(c, c.req.param('id'));
+  if ('error' in result && !('pdfDoc' in result)) return c.json({ error: result.error }, result.status);
+  const { doc, pdfDoc, d, user } = result as any;
 
   for (const { pageIndex, rotation } of pages) {
     const page = pdfDoc.getPage(pageIndex);
@@ -330,15 +361,10 @@ app.post('/api/documents/:id/pages/rotate', auth, async (c) => {
 });
 
 app.delete('/api/documents/:id/pages', auth, async (c) => {
-  const user = c.get('user');
   const { pageIndices } = await c.req.json();
-  const d = db(c);
-  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
-  if (!doc || doc.ownerId !== user.id) return c.json({ error: 'Not found' }, 404);
-
-  const object = await c.env.STORAGE.get(doc.storageKey);
-  if (!object) return c.json({ error: 'File not found' }, 404);
-  const pdfDoc = await PDFDocument.load(await object.arrayBuffer());
+  const result = await getOwnedPdf(c, c.req.param('id'));
+  if ('error' in result && !('pdfDoc' in result)) return c.json({ error: result.error }, result.status);
+  const { doc, pdfDoc, d, user } = result as any;
 
   for (const idx of [...pageIndices].sort((a: number, b: number) => b - a)) {
     pdfDoc.removePage(idx);
@@ -360,14 +386,17 @@ app.post('/api/documents/merge', auth, async (c) => {
   const d = db(c);
   const merged = await PDFDocument.create();
 
+  const skipped = [];
   for (const docId of documentIds) {
     const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, docId)).get();
-    if (!doc || doc.ownerId !== user.id) continue;
-    const object = await c.env.STORAGE.get(doc.storageKey);
-    if (!object) continue;
-    const source = await PDFDocument.load(await object.arrayBuffer());
+    if (!doc || doc.ownerId !== user.id) { skipped.push(docId); continue; }
+    const { pdfDoc: source, error } = await loadPdfFromDoc(c.env, doc);
+    if (!source) { skipped.push(docId + ': ' + (error || 'not a PDF')); continue; }
     const pages = await merged.copyPages(source, source.getPageIndices());
     for (const p of pages) merged.addPage(p);
+  }
+  if (merged.getPageCount() === 0) {
+    return c.json({ error: 'No valid PDFs to merge', skipped }, 400);
   }
 
   const buffer = await merged.save();
@@ -385,15 +414,10 @@ app.post('/api/documents/merge', auth, async (c) => {
 });
 
 app.post('/api/documents/:id/split', auth, async (c) => {
-  const user = c.get('user');
   const { ranges } = await c.req.json();
-  const d = db(c);
-  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
-  if (!doc || doc.ownerId !== user.id) return c.json({ error: 'Not found' }, 404);
-
-  const object = await c.env.STORAGE.get(doc.storageKey);
-  if (!object) return c.json({ error: 'File not found' }, 404);
-  const source = await PDFDocument.load(await object.arrayBuffer());
+  const result = await getOwnedPdf(c, c.req.param('id'));
+  if ('error' in result && !('pdfDoc' in result)) return c.json({ error: result.error }, result.status);
+  const { doc, pdfDoc: source, d, user } = result as any;
   const results = [];
 
   for (const range of ranges) {
@@ -418,15 +442,9 @@ app.post('/api/documents/:id/split', auth, async (c) => {
 
 // Optimize/compress PDF
 app.post('/api/documents/:id/optimize', auth, async (c) => {
-  const user = c.get('user');
-  const d = db(c);
-  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
-  if (!doc || doc.ownerId !== user.id) return c.json({ error: 'Not found' }, 404);
-
-  const object = await c.env.STORAGE.get(doc.storageKey);
-  if (!object) return c.json({ error: 'File not found' }, 404);
-
-  const pdfDoc = await PDFDocument.load(await object.arrayBuffer());
+  const result = await getOwnedPdf(c, c.req.param('id'));
+  if ('error' in result && !('pdfDoc' in result)) return c.json({ error: result.error }, result.status);
+  const { doc, pdfDoc, d, user } = result as any;
 
   // Strip metadata to reduce size
   pdfDoc.setTitle('');
@@ -662,21 +680,10 @@ app.patch('/api/signatures/:id/default', auth, async (c) => {
 
 // Apply signature to a document (stamp it on a specific page/position)
 app.post('/api/documents/:id/apply-signature', auth, async (c) => {
-  const user = c.get('user');
   const { signatureData, pageNumber, x, y, width, height } = await c.req.json();
-  const d = db(c);
-  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
-  if (!doc || doc.ownerId !== user.id) return c.json({ error: 'Not found' }, 404);
-
-  const object = await c.env.STORAGE.get(doc.storageKey);
-  if (!object) return c.json({ error: 'File not found' }, 404);
-
-  let pdfDoc;
-  try {
-    pdfDoc = await PDFDocument.load(await object.arrayBuffer(), { ignoreEncryption: true });
-  } catch (loadErr) {
-    return c.json({ error: 'Failed to load PDF: ' + String(loadErr) }, 400);
-  }
+  const result = await getOwnedPdf(c, c.req.param('id'));
+  if ('error' in result && !('pdfDoc' in result)) return c.json({ error: result.error }, result.status);
+  const { doc, pdfDoc, d, user } = result as any;
 
   const pageCount = pdfDoc.getPageCount();
   const pageIdx = (pageNumber || 1) - 1;
@@ -759,22 +766,14 @@ app.post('/api/documents/:id/apply-signature', auth, async (c) => {
 // ═══════════════════════ FORM FILLING ═══════════════════════
 // Get form fields from a PDF (detect fillable fields)
 app.get('/api/documents/:id/form-fields', auth, async (c) => {
-  const user = c.get('user');
-  const d = db(c);
-  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
-  if (!doc || doc.ownerId !== user.id) return c.json({ error: 'Not found' }, 404);
+  const result = await getOwnedPdf(c, c.req.param('id'));
+  if ('error' in result && !('pdfDoc' in result)) {
+    return c.json({ fields: [], count: 0, message: result.error });
+  }
+  const { doc, pdfDoc } = result as any;
 
-  // Get stored form fields
-  const fields = await d.select().from(schema.conversions)
-    .where(and(eq(schema.conversions.documentId, doc.id), eq(schema.conversions.format, 'FORM_FIELDS')))
-    .all();
-
-  // Try to detect form fields from the PDF
-  const object = await c.env.STORAGE.get(doc.storageKey);
-  if (!object) return c.json({ error: 'File not found' }, 404);
-
+  // Detect form fields from the already-loaded PDF
   try {
-    const pdfDoc = await PDFDocument.load(await object.arrayBuffer());
     const form = pdfDoc.getForm();
     const pdfFields = form.getFields().map((field) => ({
       name: field.getName(),
@@ -788,17 +787,12 @@ app.get('/api/documents/:id/form-fields', auth, async (c) => {
 
 // Fill form fields in a PDF
 app.post('/api/documents/:id/fill-form', auth, async (c) => {
-  const user = c.get('user');
   const { fields } = await c.req.json(); // { fieldName: value, ... }
-  const d = db(c);
-  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
-  if (!doc || doc.ownerId !== user.id) return c.json({ error: 'Not found' }, 404);
-
-  const object = await c.env.STORAGE.get(doc.storageKey);
-  if (!object) return c.json({ error: 'File not found' }, 404);
+  const result = await getOwnedPdf(c, c.req.param('id'));
+  if ('error' in result && !('pdfDoc' in result)) return c.json({ error: result.error }, result.status);
+  const { doc, pdfDoc, d, user } = result as any;
 
   try {
-    const pdfDoc = await PDFDocument.load(await object.arrayBuffer());
     const form = pdfDoc.getForm();
     let filled = 0;
 
