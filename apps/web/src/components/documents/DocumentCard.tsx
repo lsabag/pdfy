@@ -210,24 +210,33 @@ export function DocumentCard({
             </button>
 
             <div className="relative">
-              <button onClick={() => { setMenuPos(null); setShowMenu(!showMenu); }}
+              <button ref={(el) => { if (el) (el as any).__btnRef = el; }}
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setMenuPos({ x: rect.right - 208, y: rect.bottom + 4 });
+                  setShowMenu(!showMenu);
+                }}
                 className="w-8 h-8 flex items-center justify-center rounded-md transition-all"
                 style={{ background: "#F0F0F0", border: "1px solid #D5D5D5", color: "#2C2C2C" }}>
                 <MoreVertical size={14} />
               </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
-              {showMenu && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={closeMenu} />
-                  <div className="py-1 rounded-lg z-50 max-h-[70vh] overflow-y-auto w-52"
-                    style={{
-                      background: "var(--color-surface)",
-                      border: "1px solid var(--color-border)",
-                      boxShadow: "var(--shadow-lg)",
-                      ...(menuPos
-                        ? { position: "fixed", left: menuPos.x, top: menuPos.y }
-                        : { position: "absolute", right: 0, top: "100%", marginTop: 4 }),
-                    }}>
+      {/* Menu - rendered as fixed portal outside the card */}
+      {showMenu && menuPos && (
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={closeMenu} />
+          <div className="fixed py-1 rounded-lg z-[9999] max-h-[70vh] overflow-y-auto w-52"
+            style={{
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              boxShadow: "0 8px 30px rgba(0,0,0,0.16)",
+              left: Math.min(menuPos.x, window.innerWidth - 220),
+              top: Math.min(menuPos.y, window.innerHeight - 400),
+            }}>
 
                     {/* Basic actions */}
                     <MenuItem icon={Edit3} label="Rename" onClick={() => { closeMenu(); setIsRenaming(true); }} />
@@ -263,15 +272,11 @@ export function DocumentCard({
 
                     <MenuDivider />
 
-                    {/* Danger zone */}
-                    <MenuItem icon={Trash2} label="Move to trash" danger onClick={() => { deleteDocument(id); closeMenu(); }} />
-                  </div>
-                </>
-              )}
-            </div>
+            {/* Danger zone */}
+            <MenuItem icon={Trash2} label="Move to trash" danger onClick={() => { deleteDocument(id); closeMenu(); }} />
           </div>
-        </div>
-      </div>
+        </>
+      )}
     </div>
   );
 }

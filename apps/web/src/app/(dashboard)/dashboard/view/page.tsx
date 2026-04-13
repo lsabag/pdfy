@@ -25,6 +25,7 @@ export default function DocumentViewPage() {
   const [showComments, setShowComments] = useState(false);
   const [showSignature, setShowSignature] = useState(false);
   const [showFormFiller, setShowFormFiller] = useState(false);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
 
@@ -34,9 +35,14 @@ export default function DocumentViewPage() {
       try {
         const { data } = await api.get(`/documents/${docId}`);
         setDocument(data);
+        // Fetch PDF as blob so we can display it in iframe (iframe can't send auth headers)
+        const pdfRes = await api.get(`/documents/${docId}/download`, { responseType: "blob" });
+        const blobUrl = URL.createObjectURL(pdfRes.data);
+        setPdfBlobUrl(blobUrl);
       } catch { router.push("/dashboard"); }
       finally { setLoading(false); }
     })();
+    return () => { if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl); };
   }, [docId, router]);
 
   const loadComments = async () => {
@@ -130,7 +136,7 @@ export default function DocumentViewPage() {
     );
   }
 
-  const downloadUrl = `${api.defaults.baseURL}/documents/${docId}/download`;
+  const viewUrl = pdfBlobUrl || "";
 
   return (
     <div className="flex flex-col h-[calc(100vh-var(--topbar-height)-48px)] -m-6">
@@ -234,7 +240,7 @@ export default function DocumentViewPage() {
       <div className="flex-1 flex overflow-hidden">
         {/* PDF viewer */}
         <div className="flex-1 overflow-auto flex items-start justify-center p-4" style={{ background: "#525659" }}>
-          <iframe src={downloadUrl} className="rounded-sm shadow-xl"
+          <iframe src={viewUrl} className="rounded-sm shadow-xl"
             style={{ width: `${(816 * zoom) / 100}px`, height: `${(1056 * zoom) / 100}px`, maxWidth: "100%", border: "none", background: "white" }}
             title={document.name} />
         </div>
