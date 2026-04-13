@@ -28,16 +28,17 @@ export function Topbar() {
       <div className="flex-1 max-w-lg">
         <div className="relative">
           <Search
-            className="absolute left-3 top-1/2 -translate-y-1/2"
-            size={16}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+            size={15}
             style={{ color: "var(--color-text-tertiary)" }}
           />
           <input
             type="text"
-            className="input pl-9 h-9 text-sm"
+            className="input h-9 text-sm"
             style={{
               background: "var(--color-surface-secondary)",
               border: "1px solid transparent",
+              paddingLeft: "36px",
             }}
             placeholder="Search documents..."
             value={searchQuery}
