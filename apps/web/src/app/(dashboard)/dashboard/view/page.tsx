@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft, Download, Share2, ZoomIn, ZoomOut,
@@ -14,6 +14,16 @@ import { SignatureModal } from "@/components/signatures/SignatureModal";
 import { FormFillerModal } from "@/components/forms/FormFillerModal";
 
 export default function DocumentViewPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-full">
+      <div className="w-8 h-8 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
+    </div>}>
+      <ViewContent />
+    </Suspense>
+  );
+}
+
+function ViewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const docId = searchParams.get("id");

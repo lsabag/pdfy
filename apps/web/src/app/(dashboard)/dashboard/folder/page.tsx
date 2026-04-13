@@ -1,12 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api-client";
 import { DocumentCard } from "@/components/documents/DocumentCard";
 
 export default function FolderDetailPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20">
+      <div className="w-8 h-8 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
+    </div>}>
+      <FolderContent />
+    </Suspense>
+  );
+}
+
+function FolderContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const folderId = searchParams.get("id");

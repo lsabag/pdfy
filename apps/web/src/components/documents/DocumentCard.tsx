@@ -6,7 +6,7 @@ import {
   Edit3, FolderInput, Copy, Lock, Minimize2, FileOutput,
   RotateCw, Scissors, Merge, FileImage, FileSpreadsheet, Pen,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDocumentStore } from "@/stores/document-store";
 import { api } from "@/lib/api-client";
 
@@ -68,11 +68,25 @@ export function DocumentCard({
   const [showMenu, setShowMenu] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [isRenaming, setIsRenaming] = useState(false);
+  const [thumbUrl, setThumbUrl] = useState<string | null>(null);
   const [newName, setNewName] = useState(name);
   const [optimizing, setOptimizing] = useState(false);
   const { toggleFavorite, deleteDocument, fetchDocuments } = useDocumentStore();
 
   const closeMenu = () => { setShowMenu(false); setMenuPos(null); };
+
+  // Load PDF thumbnail preview
+  useEffect(() => {
+    if (status !== "READY") return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get(`/documents/${id}/download`, { responseType: "blob" });
+        if (!cancelled) setThumbUrl(URL.createObjectURL(res.data));
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [id, status]);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -164,6 +178,10 @@ export function DocumentCard({
                 {optimizing ? "Optimizing..." : "Processing..."}
               </span>
             </div>
+          ) : thumbUrl ? (
+            <iframe src={thumbUrl} className="w-full h-full pointer-events-none"
+              style={{ border: "none", background: "white" }}
+              title={`Preview ${name}`} tabIndex={-1} />
           ) : (
             <FileText size={48} strokeWidth={1} style={{ color: "var(--color-text-tertiary)" }} />
           )}
