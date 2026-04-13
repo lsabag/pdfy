@@ -175,7 +175,7 @@ export function DocumentCard({
       {/* Thumbnail */}
       <Link href={`/dashboard/view?id=${id}`}>
         <div className="h-44 flex items-center justify-center relative"
-          style={{ background: "var(--color-surface-secondary)" }}>
+          style={{ background: thumbUrl ? "white" : "var(--color-surface-secondary)" }}>
           {status === "PROCESSING" || optimizing ? (
             <div className="flex flex-col items-center gap-2">
               <div className="w-6 h-6 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
@@ -184,16 +184,14 @@ export function DocumentCard({
               </span>
             </div>
           ) : thumbUrl ? (
-            <div className="w-full h-full relative" style={{ background: "white", overflow: "hidden" }}>
-              <iframe src={thumbUrl + "#toolbar=0&navpanes=0&scrollbar=0&view=FitH"}
-                className="absolute top-0 left-0 pointer-events-none"
-                style={{
-                  border: "none", background: "white",
-                  width: "816px", height: "1056px",
-                  transform: "scale(0.22)", transformOrigin: "top left",
-                }}
-                title={`Preview ${name}`} tabIndex={-1} />
-            </div>
+            <iframe src={thumbUrl + "#toolbar=0&navpanes=0&scrollbar=0&view=FitH"}
+              className="absolute top-0 left-0 pointer-events-none"
+              style={{
+                border: "none", background: "white",
+                width: "816px", height: "1056px",
+                transform: "scale(0.22)", transformOrigin: "top left",
+              }}
+              title={`Preview ${name}`} tabIndex={-1} />
           ) : (
             <FileText size={48} strokeWidth={1} style={{ color: "var(--color-text-tertiary)" }} />
           )}
