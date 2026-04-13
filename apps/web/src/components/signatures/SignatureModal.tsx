@@ -47,8 +47,8 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Transparent background - signature only, no white box
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = "#1a1a1a";
     ctx.lineWidth = 2.5;
     ctx.lineCap = "round";
@@ -98,8 +98,8 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
     canvas.height = 120;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, 400, 120);
+    // Transparent background - no white box
+    ctx.clearRect(0, 0, 400, 120);
     ctx.fillStyle = "#1a1a1a";
     ctx.font = "italic 42px 'Georgia', 'Times New Roman', serif";
     ctx.textBaseline = "middle";

@@ -671,14 +671,20 @@ app.post('/api/documents/:id/apply-signature', auth, async (c) => {
   const object = await c.env.STORAGE.get(doc.storageKey);
   if (!object) return c.json({ error: 'File not found' }, 404);
 
-  // Load the PDF
-  const pdfDoc = await PDFDocument.load(await object.arrayBuffer());
-  const pageCount = pdfDoc.getPageCount();
-  const pageIdx = pageNumber - 1;
-  if (pageIdx < 0 || pageIdx >= pageCount) return c.json({ error: 'Invalid page number' }, 400);
+  let pdfDoc;
+  try {
+    pdfDoc = await PDFDocument.load(await object.arrayBuffer(), { ignoreEncryption: true });
+  } catch (loadErr) {
+    return c.json({ error: 'Failed to load PDF: ' + String(loadErr) }, 400);
+  }
 
-  // Extract the base64 PNG image from the signature data
-  // signatureData is "data:image/png;base64,iVBOR..."
+  const pageCount = pdfDoc.getPageCount();
+  const pageIdx = (pageNumber || 1) - 1;
+  if (pageIdx < 0 || pageIdx >= pageCount) {
+    return c.json({ error: `Invalid page ${pageNumber}, document has ${pageCount} pages` }, 400);
+  }
+
+  // Extract the base64 PNG image
   let base64Data: string;
   if (signatureData.includes('base64,')) {
     base64Data = signatureData.split('base64,')[1];
@@ -687,21 +693,25 @@ app.post('/api/documents/:id/apply-signature', auth, async (c) => {
   }
   if (!base64Data) return c.json({ error: 'Invalid signature data' }, 400);
 
-  // Decode base64 to bytes (Workers-compatible)
-  const binaryString = atob(base64Data.replace(/\s/g, ''));
-  const pngBytes = new Uint8Array(binaryString.length);
-  for (let i = 0; i < binaryString.length; i++) {
-    pngBytes[i] = binaryString.charCodeAt(i);
+  // Decode base64 to bytes
+  let pngBytes: Uint8Array;
+  try {
+    const binaryString = atob(base64Data.replace(/\s/g, ''));
+    pngBytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      pngBytes[i] = binaryString.charCodeAt(i);
+    }
+  } catch (decodeErr) {
+    return c.json({ error: 'Failed to decode signature: ' + String(decodeErr) }, 400);
   }
 
   let pngImage;
   try {
     pngImage = await pdfDoc.embedPng(pngBytes);
   } catch (embedError) {
-    return c.json({ error: 'Failed to embed signature image: ' + String(embedError) }, 400);
+    return c.json({ error: 'Failed to embed signature: ' + String(embedError) }, 400);
   }
 
-  // Get the target page and its dimensions
   const page = pdfDoc.getPage(pageIdx);
   const { width: pageWidth, height: pageHeight } = page.getSize();
 

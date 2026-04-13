@@ -47,8 +47,8 @@ function ViewContent() {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [sigPlaced, setSigPlaced] = useState(false);
   const pdfContainerRef = useRef<HTMLDivElement>(null);
-  const SIG_W = 180;
-  const SIG_H = 50;
+  const [sigSize, setSigSize] = useState({ w: 180, h: 50 });
+  const [isResizing, setIsResizing] = useState(false);
 
   useEffect(() => {
     if (!docId) { router.push("/dashboard"); return; }
@@ -66,17 +66,24 @@ function ViewContent() {
     return () => { if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl); };
   }, [docId, router]);
 
-  // Drag handlers for signature placement
+  // Drag + resize handlers for signature placement
   useEffect(() => {
-    if (!isDragging) return;
+    if (!isDragging && !isResizing) return;
     const onMove = (e: MouseEvent) => {
-      setSigPos({ x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y });
+      if (isDragging) {
+        setSigPos({ x: e.clientX - dragOffset.x, y: e.clientY - dragOffset.y });
+      }
+      if (isResizing) {
+        const newW = Math.max(60, e.clientX - sigPos.x);
+        const newH = Math.max(20, e.clientY - sigPos.y);
+        setSigSize({ w: newW, h: newH });
+      }
     };
-    const onUp = () => setIsDragging(false);
+    const onUp = () => { setIsDragging(false); setIsResizing(false); };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     return () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
-  }, [isDragging, dragOffset]);
+  }, [isDragging, isResizing, dragOffset, sigPos]);
 
   const loadComments = async () => {
     if (!docId) return;
@@ -306,14 +313,14 @@ function ViewContent() {
               const relY = (sigPos.y - iframeRect.top) * scaleY;
               // pdf-lib uses bottom-left origin
               const pdfX = Math.max(0, relX);
-              const pdfY = Math.max(0, pdfH - relY - (SIG_H * scaleY));
+              const pdfY = Math.max(0, pdfH - relY - (sigSize.h * scaleY));
 
               try {
                 await api.post(`/documents/${docId}/apply-signature`, {
                   signatureData: signatureImage,
                   pageNumber: currentPage,
                   x: pdfX, y: pdfY,
-                  width: SIG_W * scaleX, height: SIG_H * scaleY,
+                  width: sigSize.w * scaleX, height: sigSize.h * scaleY,
                 });
                 // Reload PDF
                 const pdfRes = await api.get(`/documents/${docId}/download`, { responseType: "blob" });
@@ -337,7 +344,7 @@ function ViewContent() {
           style={{ background: "#525659", cursor: placingSignature && !sigPlaced ? "crosshair" : "default" }}
           onClick={(e) => {
             if (placingSignature && !sigPlaced) {
-              setSigPos({ x: e.clientX - SIG_W / 2, y: e.clientY - SIG_H / 2 });
+              setSigPos({ x: e.clientX - sigSize.w / 2, y: e.clientY - sigSize.h / 2 });
               setSigPlaced(true);
             }
           }}>
@@ -354,7 +361,7 @@ function ViewContent() {
             <img src={signatureImage} alt="signature"
               className="fixed pointer-events-none opacity-70 border-2 border-dashed rounded"
               style={{
-                width: SIG_W, height: SIG_H, borderColor: "var(--color-primary)",
+                width: sigSize.w, height: sigSize.h, borderColor: "var(--color-primary)",
                 left: "var(--sig-cursor-x, 50%)", top: "var(--sig-cursor-y, 50%)",
                 transform: "translate(-50%, -50%)",
               }}
@@ -371,23 +378,40 @@ function ViewContent() {
             />
           )}
 
-          {/* Placed signature - draggable */}
+          {/* Placed signature - draggable + resizable */}
           {placingSignature && sigPlaced && signatureImage && (
-            <img src={signatureImage} alt="placed signature"
-              className="fixed rounded shadow-lg cursor-grab active:cursor-grabbing select-none"
-              style={{
-                width: SIG_W, height: SIG_H,
-                left: sigPos.x, top: sigPos.y,
-                border: "2px solid var(--color-primary)",
-                background: "rgba(255,255,255,0.9)",
-                zIndex: 50,
-              }}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                setIsDragging(true);
-                setDragOffset({ x: e.clientX - sigPos.x, y: e.clientY - sigPos.y });
-              }}
-            />
+            <div className="fixed select-none" style={{ left: sigPos.x, top: sigPos.y, zIndex: 50 }}>
+              {/* Signature image - transparent, no box */}
+              <img src={signatureImage} alt="placed signature"
+                className="cursor-grab active:cursor-grabbing"
+                draggable={false}
+                style={{
+                  width: sigSize.w, height: sigSize.h,
+                  objectFit: "contain",
+                  border: "1px dashed var(--color-primary)",
+                }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                  setDragOffset({ x: e.clientX - sigPos.x, y: e.clientY - sigPos.y });
+                }}
+              />
+              {/* Resize handle - bottom right corner */}
+              <div
+                className="absolute -bottom-1.5 -right-1.5 w-4 h-4 rounded-full cursor-se-resize"
+                style={{ background: "var(--color-primary)", border: "2px solid white" }}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsResizing(true);
+                }}
+              />
+              {/* Size label */}
+              <span className="absolute -top-5 left-0 text-[10px] px-1 rounded"
+                style={{ background: "var(--color-primary)", color: "white" }}>
+                {Math.round(sigSize.w)}x{Math.round(sigSize.h)}
+              </span>
+            </div>
           )}
         </div>
 
