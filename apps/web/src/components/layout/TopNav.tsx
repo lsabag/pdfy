@@ -10,7 +10,7 @@ import {
 
 const navLinks = [
   { href: "/dashboard", label: "Home" },
-  { href: "/dashboard/folders", label: "Documents" },
+  { href: "/documents", label: "Documents" },
   { href: "/dashboard/edit", label: "Edit", hasDropdown: true },
   { href: "/dashboard/convert", label: "Convert", hasDropdown: true },
   { href: "/dashboard/esign", label: "E-sign", hasDropdown: true },
@@ -64,6 +64,18 @@ export function TopNav() {
 
         {/* Right side */}
         <div className="flex items-center gap-2 ml-auto">
+          {/* Admin link - only for OWNER/ADMIN */}
+          {(user?.role === "OWNER" || user?.role === "ADMIN") && (
+            <Link href="/dashboard/admin/settings"
+              className="hidden md:flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors"
+              style={{
+                color: pathname.startsWith("/dashboard/admin") ? "var(--color-primary)" : "var(--color-text-secondary)",
+                background: pathname.startsWith("/dashboard/admin") ? "var(--color-primary-light)" : "transparent",
+              }}>
+              Admin
+            </Link>
+          )}
+
           {/* Search */}
           <div className="relative hidden md:block">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" size={14}
