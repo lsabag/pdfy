@@ -23,6 +23,17 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
   const [tab, setTab] = useState<"draw" | "type" | "saved">("draw");
   const [isDrawing, setIsDrawing] = useState(false);
   const [typedName, setTypedName] = useState("");
+  const [sigFont, setSigFont] = useState("Georgia, serif");
+  const [sigFontSize, setSigFontSize] = useState(36);
+
+  const fontOptions = [
+    { label: "Georgia", value: "Georgia, serif" },
+    { label: "Arial", value: "Arial, sans-serif" },
+    { label: "Times New Roman", value: "'Times New Roman', serif" },
+    { label: "Courier", value: "'Courier New', monospace" },
+    { label: "Brush Script", value: "'Brush Script MT', cursive" },
+    { label: "Verdana", value: "Verdana, sans-serif" },
+  ];
   const [savedSigs, setSavedSigs] = useState<SavedSignature[]>([]);
   const [saveName, setSaveName] = useState("");
   const [showSaveInput, setShowSaveInput] = useState(false);
@@ -94,18 +105,22 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
 
   const getTypedSignatureData = (): string | null => {
     if (!typedName.trim()) return null;
+    const lines = typedName.split("\n");
+    const lineHeight = sigFontSize * 1.4;
+    const canvasHeight = Math.max(80, lines.length * lineHeight + 20);
     const canvas = document.createElement("canvas");
-    canvas.width = 400;
-    canvas.height = 120;
+    canvas.width = 500;
+    canvas.height = canvasHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
-    // White background so it's visible in PDF
     ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, 400, 120);
+    ctx.fillRect(0, 0, canvas.width, canvasHeight);
     ctx.fillStyle = "#111111";
-    ctx.font = "italic 42px 'Georgia', 'Times New Roman', serif";
-    ctx.textBaseline = "middle";
-    ctx.fillText(typedName, 20, 60);
+    ctx.font = `${sigFontSize}px ${sigFont}`;
+    ctx.textBaseline = "top";
+    lines.forEach((line, i) => {
+      ctx.fillText(line, 15, 10 + i * lineHeight);
+    });
     return canvas.toDataURL("image/png");
   };
 
@@ -202,19 +217,40 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
 
           {tab === "type" && (
             <div>
-              <input className="input text-2xl h-16 text-center"
-                style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic" }}
-                placeholder="Type your name..."
+              {/* Font and size controls */}
+              <div className="flex gap-2 mb-3">
+                <select className="input text-sm h-9 flex-1" value={sigFont}
+                  onChange={(e) => setSigFont(e.target.value)}>
+                  {fontOptions.map((f) => (
+                    <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>
+                  ))}
+                </select>
+                <select className="input text-sm h-9 w-20" value={sigFontSize}
+                  onChange={(e) => setSigFontSize(Number(e.target.value))}>
+                  {[18, 24, 30, 36, 42, 48, 56, 64].map((s) => (
+                    <option key={s} value={s}>{s}px</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Text input - multiline */}
+              <textarea className="input text-xl resize-none"
+                style={{ fontFamily: sigFont, fontSize: sigFontSize + "px", minHeight: "80px" }}
+                placeholder="Type your signature..."
+                rows={2}
                 value={typedName} onChange={(e) => setTypedName(e.target.value)} autoFocus />
-              <div className="mt-3 p-4 rounded-lg flex items-center justify-center" style={{ background: "white", border: "1px solid var(--color-border)", minHeight: "80px" }}>
+
+              {/* Preview */}
+              <div className="mt-3 p-4 rounded-lg" style={{ background: "white", border: "1px solid var(--color-border)", minHeight: "70px" }}>
                 {typedName ? (
-                  <span className="text-4xl" style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: "italic", color: "#1a1a1a" }}>
+                  <div style={{ fontFamily: sigFont, fontSize: sigFontSize + "px", color: "#111", whiteSpace: "pre-wrap", lineHeight: 1.4 }}>
                     {typedName}
-                  </span>
+                  </div>
                 ) : (
                   <span className="text-sm" style={{ color: "var(--color-text-tertiary)" }}>Preview</span>
                 )}
               </div>
+
               <div className="flex justify-end mt-3 gap-2">
                 <button className="btn btn-secondary text-sm" onClick={() => setShowSaveInput(true)}>
                   <Save size={14} /> Save as permanent
