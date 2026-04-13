@@ -166,8 +166,8 @@ export function DocumentCard({
 
   return (
     <div
-      className="group rounded-xl overflow-hidden transition-shadow hover:shadow-[var(--shadow-md)]"
-      style={{ background: "var(--color-surface)", boxShadow: "0 0 0 1px var(--color-border-light)" }}
+      className="group rounded-xl transition-shadow hover:shadow-[var(--shadow-md)]"
+      style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-light)", overflow: "visible" }}
       onContextMenu={handleContextMenu}
       draggable
       onDragStart={(e) => { e.dataTransfer.setData("text/docId", id); }}
@@ -175,7 +175,7 @@ export function DocumentCard({
       {/* Thumbnail */}
       <Link href={`/dashboard/view?id=${id}`}>
         <div className="h-44 flex items-center justify-center"
-          style={{ background: "white", overflow: "hidden", position: "relative" }}>
+          style={{ background: "white", overflow: "hidden", position: "relative", borderRadius: "12px 12px 0 0", margin: "-1px -1px 0 -1px" }}>
           {status === "PROCESSING" || optimizing ? (
             <div className="flex flex-col items-center gap-2">
               <div className="w-6 h-6 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
