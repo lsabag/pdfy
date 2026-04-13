@@ -66,12 +66,19 @@ export function DocumentCard({
   id, name, sizeBytes, pageCount, status, thumbnailKey, isFavorite, updatedAt,
 }: DocumentCardProps) {
   const [showMenu, setShowMenu] = useState(false);
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
   const [isRenaming, setIsRenaming] = useState(false);
   const [newName, setNewName] = useState(name);
   const [optimizing, setOptimizing] = useState(false);
   const { toggleFavorite, deleteDocument, fetchDocuments } = useDocumentStore();
 
-  const closeMenu = () => setShowMenu(false);
+  const closeMenu = () => { setShowMenu(false); setMenuPos(null); };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setMenuPos({ x: e.clientX, y: e.clientY });
+    setShowMenu(true);
+  };
 
   const handleDownload = async () => {
     closeMenu();
@@ -144,6 +151,7 @@ export function DocumentCard({
     <div
       className="group rounded-xl overflow-hidden transition-shadow hover:shadow-[var(--shadow-md)]"
       style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-light)" }}
+      onContextMenu={handleContextMenu}
     >
       {/* Thumbnail */}
       <Link href={`/dashboard/view?id=${id}`}>
@@ -204,8 +212,15 @@ export function DocumentCard({
               {showMenu && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={closeMenu} />
-                  <div className="absolute right-0 top-full mt-1 w-52 py-1 rounded-lg z-50 max-h-[70vh] overflow-y-auto"
-                    style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-lg)" }}>
+                  <div className="py-1 rounded-lg z-50 max-h-[70vh] overflow-y-auto w-52"
+                    style={{
+                      background: "var(--color-surface)",
+                      border: "1px solid var(--color-border)",
+                      boxShadow: "var(--shadow-lg)",
+                      ...(menuPos
+                        ? { position: "fixed", left: menuPos.x, top: menuPos.y }
+                        : { position: "absolute", right: 0, top: "100%", marginTop: 4 }),
+                    }}>
 
                     {/* Basic actions */}
                     <MenuItem icon={Edit3} label="Rename" onClick={() => { closeMenu(); setIsRenaming(true); }} />
