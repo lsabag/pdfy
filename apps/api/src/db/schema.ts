@@ -11,7 +11,7 @@ export const users = sqliteTable('users', {
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   plan: text('plan').notNull().default('free'),
   storageUsedBytes: integer('storage_used_bytes').notNull().default(0),
-  storageQuotaBytes: integer('storage_quota_bytes').notNull().default(5368709120),
+  storageQuotaBytes: integer('storage_quota_bytes').notNull().default(53687091200), // 50GB
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
   lastLoginAt: text('last_login_at'),

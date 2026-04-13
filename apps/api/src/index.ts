@@ -416,6 +416,61 @@ app.post('/api/documents/:id/split', auth, async (c) => {
   return c.json(results, 201);
 });
 
+// Optimize/compress PDF
+app.post('/api/documents/:id/optimize', auth, async (c) => {
+  const user = c.get('user');
+  const d = db(c);
+  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
+  if (!doc || doc.ownerId !== user.id) return c.json({ error: 'Not found' }, 404);
+
+  const object = await c.env.STORAGE.get(doc.storageKey);
+  if (!object) return c.json({ error: 'File not found' }, 404);
+
+  const pdfDoc = await PDFDocument.load(await object.arrayBuffer());
+
+  // Strip metadata to reduce size
+  pdfDoc.setTitle('');
+  pdfDoc.setAuthor('');
+  pdfDoc.setSubject('');
+  pdfDoc.setKeywords([]);
+  pdfDoc.setProducer('pdfy');
+  pdfDoc.setCreator('pdfy');
+
+  // Re-save with object stream compression (pdf-lib does this by default)
+  const optimizedBuffer = await pdfDoc.save({
+    useObjectStreams: true,
+    addDefaultPage: false,
+    objectsPerTick: 100,
+  });
+
+  const originalSize = doc.sizeBytes;
+  const newSize = optimizedBuffer.byteLength;
+  const saved = originalSize - newSize;
+
+  if (saved > 0) {
+    const newKey = `documents/${user.id}/${doc.id}/current.pdf`;
+    await c.env.STORAGE.put(newKey, optimizedBuffer, { httpMetadata: { contentType: 'application/pdf' } });
+
+    await d.update(schema.documents).set({
+      storageKey: newKey,
+      sizeBytes: newSize,
+      version: doc.version + 1,
+      updatedAt: new Date().toISOString(),
+    }).where(eq(schema.documents.id, doc.id));
+
+    await d.update(schema.users).set({
+      storageUsedBytes: sql`${schema.users.storageUsedBytes} - ${saved}`,
+    }).where(eq(schema.users.id, user.id));
+  }
+
+  return c.json({
+    originalSize,
+    optimizedSize: newSize,
+    savedBytes: Math.max(0, saved),
+    savedPercent: saved > 0 ? Math.round((saved / originalSize) * 100) : 0,
+  });
+});
+
 // ═══════════════════════ SHARING ═══════════════════════
 app.post('/api/documents/:id/share', auth, async (c) => {
   const user = c.get('user');

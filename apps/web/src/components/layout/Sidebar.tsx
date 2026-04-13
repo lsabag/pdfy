@@ -141,7 +141,7 @@ export function Sidebar() {
       <div className="px-4 py-4 flex-shrink-0" style={{ borderTop: "1px solid var(--color-sidebar-hover)" }}>
         <div className="flex justify-between text-xs mb-1.5" style={{ color: "var(--color-sidebar-text)" }}>
           <span>Storage</span>
-          <span>0 / 5 GB</span>
+          <span>0 / 50 GB</span>
         </div>
         <div className="h-1.5 rounded-full" style={{ background: "var(--color-sidebar-hover)" }}>
           <div
