@@ -131,7 +131,7 @@ export function UploadDropzone() {
                 setIsOpen(false);
                 setFiles([]);
               }}
-              className="btn btn-ghost w-8 h-8 p-0"
+              className="btn-icon"
             >
               <X size={18} />
             </button>

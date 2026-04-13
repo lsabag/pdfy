@@ -47,9 +47,10 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    // Transparent background - signature only, no white box
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = "#1a1a1a";
+    // White background so signature is visible in all PDF viewers
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "#111111";
     ctx.lineWidth = 2.5;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -98,9 +99,10 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
     canvas.height = 120;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
-    // Transparent background - no white box
-    ctx.clearRect(0, 0, 400, 120);
-    ctx.fillStyle = "#1a1a1a";
+    // White background so it's visible in PDF
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, 400, 120);
+    ctx.fillStyle = "#111111";
     ctx.font = "italic 42px 'Georgia', 'Times New Roman', serif";
     ctx.textBaseline = "middle";
     ctx.fillText(typedName, 20, 60);
@@ -155,7 +157,7 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
           <h3 className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>
             Sign Document
           </h3>
-          <button onClick={onClose} className="btn btn-ghost w-8 h-8 p-0"><X size={18} /></button>
+          <button onClick={onClose} className="btn-icon"><X size={18} /></button>
         </div>
 
         {/* Tabs */}
@@ -248,15 +250,15 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
                       </div>
                       <div className="flex gap-1 flex-shrink-0">
                         {!sig.isDefault && (
-                          <button className="btn btn-ghost w-7 h-7 p-0" title="Set as default"
+                          <button className="btn-icon" style={{width:28,height:28}} title="Set as default"
                             onClick={() => handleSetDefault(sig.id)}><Check size={14} /></button>
                         )}
-                        <button className="btn btn-ghost w-7 h-7 p-0" title="Use this signature"
-                          onClick={() => onApply(sig.data)} style={{ color: "var(--color-primary)" }}>
+                        <button className="btn-icon" title="Use this signature"
+                          onClick={() => onApply(sig.data)} style={{ width:28, height:28, color: "var(--color-primary)" }}>
                           <Pen size={14} />
                         </button>
-                        <button className="btn btn-ghost w-7 h-7 p-0" title="Delete"
-                          onClick={() => handleDeleteSaved(sig.id)} style={{ color: "var(--color-error)" }}>
+                        <button className="btn-icon" title="Delete"
+                          onClick={() => handleDeleteSaved(sig.id)} style={{ width:28, height:28, color: "var(--color-error)" }}>
                           <Trash2 size={14} />
                         </button>
                       </div>

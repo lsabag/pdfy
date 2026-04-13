@@ -80,7 +80,7 @@ export function FormFillerModal({ isOpen, onClose, documentId, onFilled }: FormF
           <h3 className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>
             Fill PDF Form
           </h3>
-          <button onClick={onClose} className="btn btn-ghost w-8 h-8 p-0"><X size={18} /></button>
+          <button onClick={onClose} className="btn-icon"><X size={18} /></button>
         </div>
 
         {/* Content */}

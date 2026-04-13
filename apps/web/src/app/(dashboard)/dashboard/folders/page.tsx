@@ -93,7 +93,7 @@ export default function FoldersPage() {
                 <FolderOpen size={32} style={{ color: folder.color || "var(--color-primary)" }} />
                 <button
                   onClick={(e) => { e.preventDefault(); handleDelete(folder.id); }}
-                  className="btn btn-ghost w-7 h-7 p-0 opacity-0 group-hover:opacity-100"
+                  className="btn-icon opacity-0 group-hover:opacity-100"
                 >
                   <Trash2 size={14} />
                 </button>

@@ -139,6 +139,26 @@ body {
   border-color: var(--color-border);
 }
 
+/* Icon button - square, centered icon, visible on all backgrounds */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  border: 1px solid #D5D5D5;
+  background: #F0F0F0;
+  color: #2C2C2C;
+  transition: all 0.15s ease;
+}
+.btn-icon:hover {
+  background: #E0E0E0;
+  border-color: #BFBFBF;
+}
+
 /* Input base */
 .input {
   width: 100%;

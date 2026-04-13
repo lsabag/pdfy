@@ -49,7 +49,7 @@ function FolderContent() {
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => router.push("/dashboard/folders")} className="btn btn-ghost w-8 h-8 p-0"><ArrowLeft size={18} /></button>
+        <button onClick={() => router.push("/dashboard/folders")} className="btn-icon"><ArrowLeft size={18} /></button>
         <h1 className="text-2xl font-bold" style={{ color: "var(--color-text-primary)" }}>{folder.name}</h1>
         <span className="text-sm" style={{ color: "var(--color-text-tertiary)" }}>{folder.documents?.length || 0} documents</span>
       </div>

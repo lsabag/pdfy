@@ -186,7 +186,7 @@ function ViewContent() {
 
         {/* Left: back + title */}
         <div className="flex items-center gap-2">
-          <button onClick={() => router.push("/dashboard")} className="btn btn-ghost w-8 h-8 p-0">
+          <button onClick={() => router.push("/dashboard")} className="btn-icon">
             <ArrowLeft size={18} />
           </button>
           <button onClick={handleRename} className="flex items-center gap-1.5 hover:opacity-70 transition-opacity">
@@ -424,7 +424,7 @@ function ViewContent() {
               <h3 className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
                 Comments ({comments.length})
               </h3>
-              <button onClick={() => setShowComments(false)} className="btn btn-ghost w-7 h-7 p-0 text-xs">X</button>
+              <button onClick={() => setShowComments(false)} className="btn-icon" style={{width:28,height:28}}>X</button>
             </div>
             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
               {comments.length === 0 && (
