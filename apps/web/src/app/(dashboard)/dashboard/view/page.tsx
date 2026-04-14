@@ -373,7 +373,7 @@ function ViewContent() {
               const PDF_H = 792;
 
               // Get iframe on screen
-              const iframe = pdfContainerRef.current.querySelector("iframe");
+              const iframe = pdfContainerRef.current.querySelector("embed, iframe");
               if (!iframe) return;
               const iframeRect = iframe.getBoundingClientRect();
 
