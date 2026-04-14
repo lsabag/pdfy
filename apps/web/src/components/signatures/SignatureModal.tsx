@@ -154,8 +154,9 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
       // Reload signatures and switch to Saved tab to show the result
       await loadSaved();
       setTab("saved");
+      alert("Signature saved successfully!");
     } catch (err: any) {
-      alert("Failed to save: " + (err.response?.data?.error || err.message));
+      alert("Failed to save signature: " + (err.response?.data?.error || err.message));
     }
   };
 
