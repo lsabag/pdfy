@@ -247,7 +247,7 @@ export function DocumentCard({
           <div className="flex-1 min-w-0">
             {isRenaming ? (
               <form onSubmit={(e) => { e.preventDefault(); handleRename(); }} className="flex gap-1">
-                <input className="input text-sm h-7 px-2 flex-1" value={newName}
+                <input id={`rename-${id}`} name="rename" className="input text-sm h-7 px-2 flex-1" value={newName} aria-label="Rename document"
                   onChange={(e) => setNewName(e.target.value)}
                   onBlur={handleRename} autoFocus />
               </form>

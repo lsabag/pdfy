@@ -119,7 +119,7 @@ export default function AllToolsPage() {
         </div>
       </div>
 
-      <input ref={fileInputRef} type="file" className="hidden"
+      <input ref={fileInputRef} type="file" className="hidden" id="file-upload" name="fileUpload" aria-label="Upload file"
         accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.tiff,.bmp,.webp,.gif"
         onChange={handleFileSelect} />
 

@@ -85,7 +85,7 @@ function ShareContent() {
           <h1 className="text-xl font-bold mb-2 text-center" style={{ color: "var(--color-text-primary)" }}>Password required</h1>
           {error && <p className="text-sm text-center mb-4" style={{ color: "var(--color-error)" }}>{error}</p>}
           <form onSubmit={handleVerify} className="flex flex-col gap-3">
-            <input type="password" className="input" placeholder="Enter password" value={password}
+            <input id="share-password" name="sharePassword" type="password" className="input" placeholder="Enter password" value={password} aria-label="Share password"
               onChange={(e) => setPassword(e.target.value)} autoFocus />
             <button type="submit" className="btn btn-primary w-full h-11">Verify</button>
           </form>

@@ -77,7 +77,7 @@ export default function ConvertPage() {
     <div>
       <h1 className="text-2xl font-bold mb-6" style={{ color: "var(--color-text-primary)" }}>Convert</h1>
 
-      <input ref={fileInputRef} type="file" className="hidden"
+      <input ref={fileInputRef} type="file" className="hidden" id="file-upload" name="fileUpload" aria-label="Upload file"
         accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.jpg,.jpeg,.png,.tiff,.bmp,.webp,.gif"
         onChange={handleFileSelect} />
 

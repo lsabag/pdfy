@@ -84,7 +84,7 @@ export default function ESignPage() {
         Sign documents, request signatures, and manage e-sign workflows
       </p>
 
-      <input ref={fileInputRef} type="file" className="hidden" accept=".pdf,image/*"
+      <input id="file-upload" name="fileUpload" ref={fileInputRef} type="file" className="hidden" aria-label="Upload file" accept=".pdf,image/*"
         onChange={handleFileSelect} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">

@@ -76,7 +76,7 @@ export default function LoginPage() {
             Email
           </label>
           <input
-            id="login-email"
+            id="login-email" autoComplete="email"
             name="email"
             type="email"
             className="input"
@@ -96,7 +96,7 @@ export default function LoginPage() {
             Password
           </label>
           <input
-            id="login-password"
+            id="login-password" autoComplete="current-password"
             name="password"
             type="password"
             className="input"

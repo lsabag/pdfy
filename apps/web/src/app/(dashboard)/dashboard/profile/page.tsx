@@ -176,15 +176,15 @@ export default function ProfilePage() {
         <div className="space-y-4">
           <div>
             <label htmlFor="profile-current-password" className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Current Password</label>
-            <input id="profile-current-password" name="currentPassword" className="input" type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} placeholder="Enter current password" />
+            <input id="profile-current-password" autoComplete="current-password" name="currentPassword" className="input" type="password" value={currentPw} onChange={(e) => setCurrentPw(e.target.value)} placeholder="Enter current password" />
           </div>
           <div>
             <label htmlFor="profile-new-password" className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>New Password</label>
-            <input id="profile-new-password" name="newPassword" className="input" type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="Min 8 characters" />
+            <input id="profile-new-password" autoComplete="new-password" name="newPassword" className="input" type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="Min 8 characters" />
           </div>
           <div>
             <label htmlFor="profile-confirm-password" className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-text-primary)" }}>Confirm New Password</label>
-            <input id="profile-confirm-password" name="confirmPassword" className="input" type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="Repeat new password" />
+            <input id="profile-confirm-password" autoComplete="new-password" name="confirmPassword" className="input" type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="Repeat new password" />
           </div>
           <div className="flex items-center gap-3">
             <button className="btn btn-primary" onClick={handleChangePassword} disabled={pwSaving || !currentPw || !newPw}>
