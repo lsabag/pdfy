@@ -116,16 +116,17 @@ function ViewContent() {
   };
 
   // Reload PDF after an edit, saving current version for undo
+  const [pdfKey, setPdfKey] = useState(0); // Force iframe remount
+
   const reloadPdf = async () => {
     if (pdfDataUrl) {
       setVersionHistory((prev) => [...prev, pdfDataUrl]);
     }
-    // Clear first so iframe re-renders
     setPdfDataUrl(null);
-    // Small delay to ensure state clears
-    await new Promise(r => setTimeout(r, 100));
     const newUrl = await downloadPdfDataUrl(docId!);
     if (newUrl) {
+      // Force iframe to fully remount by changing key
+      setPdfKey((k) => k + 1);
       setPdfDataUrl(newUrl);
     }
     const { data: freshDoc } = await api.get(`/documents/${docId}`);
@@ -398,7 +399,7 @@ function ViewContent() {
               setSigPlaced(true);
             }
           }}>
-          <iframe src={viewUrl} className="rounded-sm shadow-xl"
+          <iframe key={pdfKey} src={viewUrl} className="rounded-sm shadow-xl"
             style={{
               width: `${(816 * zoom) / 100}px`, height: `${(1056 * zoom) / 100}px`,
               maxWidth: "100%", border: "none", background: "white",
