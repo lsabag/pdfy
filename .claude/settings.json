@@ -7,7 +7,10 @@
       "Bash(wrangler deploy:*)",
       "Bash(npx next:*)",
       "Bash(wrangler pages:*)",
-      "Bash(curl -s https://pdfy-api.lsabag.workers.dev/api/documents/87fbbf15-6d22-4cba-9df3-3f33f9df73de -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjdlMjQ4NGJlLTkwZDEtNDU1Yy1iZjkyLTE5NmQ1NjBlYzJhZiIsImVtYWlsIjoibHNhYmFnQGdtYWlsLmNvbSIsIm5hbWUiOiJMaW9yIFNhYmFnIiwicm9sZSI6Ik9XTkVSIiwiaWF0IjoxNzc2MTE0NjYzLCJleHAiOjE3NzY3MTk0NjN9.4JYo+t7C6Jk8LN4BQ5zNFheQuH8FvSmKgPAipBR2oKg')"
+      "Bash(curl -s https://pdfy-api.lsabag.workers.dev/api/documents/87fbbf15-6d22-4cba-9df3-3f33f9df73de -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjdlMjQ4NGJlLTkwZDEtNDU1Yy1iZjkyLTE5NmQ1NjBlYzJhZiIsImVtYWlsIjoibHNhYmFnQGdtYWlsLmNvbSIsIm5hbWUiOiJMaW9yIFNhYmFnIiwicm9sZSI6Ik9XTkVSIiwiaWF0IjoxNzc2MTE0NjYzLCJleHAiOjE3NzY3MTk0NjN9.4JYo+t7C6Jk8LN4BQ5zNFheQuH8FvSmKgPAipBR2oKg')",
+      "Bash(wrangler d1:*)",
+      "Bash(curl -s -X POST https://pdfy-api.lsabag.workers.dev/api/auth/login -H 'Content-Type: application/json' -d '{\"email\":\"lsabag@gmail.com\",\"password\":\"Lsabag1234\"}')",
+      "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\(f\\\\\"Login: {d.get\\('user',{}\\).get\\('role','FAIL'\\)}\\\\\"\\)\")"
     ]
   }
 }

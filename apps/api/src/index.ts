@@ -4,6 +4,7 @@ import { drizzle } from 'drizzle-orm/d1';
 import { eq, desc, and, isNull, isNotNull, like, sql } from 'drizzle-orm';
 import * as schema from './db/schema.js';
 import { hashPassword, verifyPassword, createToken, verifyToken, uid } from './lib/auth.js';
+import { securityHeaders, checkRateLimit, sanitizeString, isValidEmail, MAX_FILE_SIZE } from './lib/security.js';
 import type { Env, UserPayload } from './types.js';
 import { PDFDocument, degrees } from 'pdf-lib';
 import { nanoid } from 'nanoid';
@@ -11,11 +12,22 @@ import { nanoid } from 'nanoid';
 type HonoEnv = { Bindings: Env; Variables: { user: UserPayload } };
 const app = new Hono<HonoEnv>();
 
-// CORS
+// Security headers on all responses
+app.use('*', async (c, next) => {
+  await next();
+  const headers = securityHeaders();
+  for (const [key, value] of Object.entries(headers)) {
+    c.header(key, value);
+  }
+});
+
+// CORS - strict origin, no wildcard fallback
 app.use('*', async (c, next) => {
   const corsMiddleware = cors({
-    origin: c.env.CORS_ORIGIN || '*',
+    origin: c.env.CORS_ORIGIN || 'https://pdfy.nextli.co.il',
     credentials: true,
+    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
   });
   return corsMiddleware(c, next);
 });
@@ -81,8 +93,16 @@ app.get('/health', (c) => c.json({ status: 'ok', ts: new Date().toISOString() })
 
 // ═══════════════════════ AUTH ═══════════════════════
 app.post('/api/auth/register', async (c) => {
+  // Rate limit: 5 registrations per 15 minutes per IP
+  const ip = c.req.header('CF-Connecting-IP') || 'unknown';
+  const rl = checkRateLimit(`register:${ip}`, 5, 15 * 60 * 1000);
+  if (!rl.allowed) return c.json({ error: 'Too many attempts. Try again later.' }, 429);
+
   const { name, email, password } = await c.req.json();
   if (!name || !email || !password) return c.json({ error: 'Missing fields' }, 400);
+  if (!isValidEmail(email)) return c.json({ error: 'Invalid email' }, 400);
+  if (password.length < 8) return c.json({ error: 'Password must be at least 8 characters' }, 400);
+  const safeName = sanitizeString(name, 100);
 
   const d = db(c);
   const existing = await d.select().from(schema.users).where(eq(schema.users.email, email)).get();
@@ -93,12 +113,17 @@ app.post('/api/auth/register', async (c) => {
   const id = uid();
   const passwordHash = await hashPassword(password);
 
-  await d.insert(schema.users).values({ id, email, name, passwordHash, role });
-  const token = await createToken({ id, email, name, role }, c.env.JWT_SECRET);
-  return c.json({ user: { id, email, name, role }, token }, 201);
+  await d.insert(schema.users).values({ id, email, name: safeName, passwordHash, role });
+  const token = await createToken({ id, email, name: safeName, role }, c.env.JWT_SECRET);
+  return c.json({ user: { id, email, name: safeName, role }, token }, 201);
 });
 
 app.post('/api/auth/login', async (c) => {
+  // Rate limit: 10 login attempts per 15 minutes per IP
+  const ip = c.req.header('CF-Connecting-IP') || 'unknown';
+  const rl = checkRateLimit(`login:${ip}`, 10, 15 * 60 * 1000);
+  if (!rl.allowed) return c.json({ error: 'Too many attempts. Try again later.' }, 429);
+
   const { email, password } = await c.req.json();
   const d = db(c);
   const user = await d.select().from(schema.users).where(eq(schema.users.email, email)).get();
@@ -208,6 +233,7 @@ app.post('/api/documents', auth, async (c) => {
   const file = formData.get('file') as File | null;
   const folderId = formData.get('folderId') as string | null;
   if (!file) return c.json({ error: 'No file provided' }, 400);
+  if (file.size > MAX_FILE_SIZE) return c.json({ error: 'File too large (max 100MB)' }, 400);
 
   const id = uid();
   const buffer = await file.arrayBuffer();
@@ -743,11 +769,22 @@ app.get('/api/share/:token/download', async (c) => {
 app.post('/api/documents/:id/comments', auth, async (c) => {
   const user = c.get('user');
   const body = await c.req.json();
+  if (!body.content || body.content.length > 5000) return c.json({ error: 'Comment must be 1-5000 characters' }, 400);
+  // Verify user has access to this document
   const d = db(c);
+  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
+  if (!doc) return c.json({ error: 'Not found' }, 404);
+  if (doc.ownerId !== user.id) {
+    const share = await d.select().from(schema.shares).where(
+      and(eq(schema.shares.documentId, doc.id), eq(schema.shares.recipientId, user.id), eq(schema.shares.isActive, true),
+        eq(schema.shares.permission, 'COMMENT'))
+    ).get();
+    if (!share) return c.json({ error: 'Access denied' }, 403);
+  }
   const id = uid();
   await d.insert(schema.comments).values({
     id, documentId: c.req.param('id'), authorId: user.id,
-    content: body.content, type: body.type || 'TEXT',
+    content: sanitizeString(body.content, 5000), type: body.type || 'TEXT',
     pageNumber: body.pageNumber, position: body.position,
     highlightColor: body.highlightColor, parentId: body.parentId,
   });
@@ -756,7 +793,17 @@ app.post('/api/documents/:id/comments', auth, async (c) => {
 });
 
 app.get('/api/documents/:id/comments', auth, async (c) => {
+  const user = c.get('user');
   const d = db(c);
+  // Verify user has access to this document
+  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
+  if (!doc) return c.json({ error: 'Not found' }, 404);
+  if (doc.ownerId !== user.id) {
+    const share = await d.select().from(schema.shares).where(
+      and(eq(schema.shares.documentId, doc.id), eq(schema.shares.recipientId, user.id), eq(schema.shares.isActive, true))
+    ).get();
+    if (!share) return c.json({ error: 'Access denied' }, 403);
+  }
   const comments = await d.select().from(schema.comments)
     .where(eq(schema.comments.documentId, c.req.param('id')))
     .orderBy(schema.comments.createdAt).all();
@@ -764,9 +811,13 @@ app.get('/api/documents/:id/comments', auth, async (c) => {
 });
 
 app.patch('/api/comments/:id/resolve', auth, async (c) => {
+  const user = c.get('user');
   const d = db(c);
   const comment = await d.select().from(schema.comments).where(eq(schema.comments.id, c.req.param('id'))).get();
   if (!comment) return c.json({ error: 'Not found' }, 404);
+  // Verify user owns the document or authored the comment
+  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, comment.documentId)).get();
+  if (!doc || (doc.ownerId !== user.id && comment.authorId !== user.id)) return c.json({ error: 'Access denied' }, 403);
   await d.update(schema.comments).set({ isResolved: !comment.isResolved }).where(eq(schema.comments.id, c.req.param('id')));
   return c.json({ success: true });
 });
@@ -1104,6 +1155,8 @@ app.post('/api/admin/invites', auth, async (c) => {
 });
 
 app.get('/api/admin/invites', auth, async (c) => {
+  const user = c.get('user');
+  if (user.role !== 'OWNER' && user.role !== 'ADMIN') return c.json({ error: 'Forbidden' }, 403);
   const d = db(c);
   const invs = await d.select().from(schema.invites).where(isNull(schema.invites.acceptedAt)).all();
   return c.json(invs);
