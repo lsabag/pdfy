@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   FolderOpen, Star, ScanLine, MessageCircle, Share2, Users,
   Upload, LayoutGrid, List, ArrowDown, ChevronDown, FileText,
@@ -22,7 +22,17 @@ const sideFilters = [
 ];
 
 export default function DocumentsPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" /></div>}>
+      <DocumentsContent />
+    </Suspense>
+  );
+}
+
+function DocumentsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const urlSearch = searchParams.get("search") || "";
   const { documents, isLoading, viewMode, setViewMode, fetchDocuments, pagination } = useDocumentStore();
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [filter, setFilter] = useState("all");
@@ -38,9 +48,11 @@ export default function DocumentsPage() {
   }, []);
 
   useEffect(() => {
-    if (filter === "starred") fetchDocuments({ favorites: "true", sortBy, sortOrder: "asc" });
-    else fetchDocuments({ sortBy, sortOrder: "asc" });
-  }, [filter, sortBy, fetchDocuments]);
+    const params: Record<string, string> = { sortBy, sortOrder: "asc" };
+    if (urlSearch) params.search = urlSearch;
+    if (filter === "starred") params.favorites = "true";
+    fetchDocuments(params);
+  }, [filter, sortBy, urlSearch, fetchDocuments]);
 
   const loadFolders = async () => {
     try { const { data } = await api.get("/folders"); setFolders(data); } catch {}

@@ -5,8 +5,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth-store";
 import {
-  Search, Bell, Upload, LogOut, User, ChevronDown, Menu, X,
+  Search, Bell, Upload, LogOut, User, ChevronDown, Menu, X, CheckCheck,
 } from "lucide-react";
+import { api } from "@/lib/api-client";
 
 const navLinks = [
   { href: "/dashboard", label: "Home" },
@@ -24,6 +25,9 @@ export function TopNav() {
   const [showUser, setShowUser] = useState(false);
   const [showMobile, setShowMobile] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showNotif, setShowNotif] = useState(false);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const handleLogout = () => { logout(); router.push("/login"); };
 
@@ -77,7 +81,10 @@ export function TopNav() {
           )}
 
           {/* Search */}
-          <div className="relative hidden md:block">
+          <form className="relative hidden md:block" onSubmit={(e) => {
+            e.preventDefault();
+            if (searchQuery.trim()) router.push(`/documents?search=${encodeURIComponent(searchQuery.trim())}`);
+          }}>
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" size={14}
               style={{ color: "var(--color-text-tertiary)" }} />
             <input id="topbar-search" name="search" type="text"
@@ -85,7 +92,7 @@ export function TopNav() {
               style={{ background: "var(--color-surface-secondary)", border: "1px solid transparent", paddingLeft: "32px", fontSize: "13px" }}
               placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
               aria-label="Search documents" />
-          </div>
+          </form>
 
           {/* Upload */}
           <button className="btn btn-primary h-8 text-xs px-3"
@@ -93,10 +100,60 @@ export function TopNav() {
             <Upload size={14} /> <span className="hidden sm:inline">Upload</span>
           </button>
 
-          {/* Bell */}
-          <button className="btn-icon" style={{ width: 32, height: 32 }} title="Notifications">
-            <Bell size={15} />
-          </button>
+          {/* Notifications */}
+          <div className="relative">
+            <button className="btn-icon" style={{ width: 32, height: 32 }} title="Notifications"
+              onClick={async () => {
+                setShowNotif(!showNotif);
+                if (!showNotif) {
+                  try {
+                    const { data } = await api.get("/notifications");
+                    setNotifications(data.notifications || []);
+                    setUnreadCount(data.unreadCount || 0);
+                  } catch {}
+                }
+              }}>
+              <Bell size={15} />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center text-white"
+                  style={{ background: "var(--color-error)" }}>{unreadCount > 9 ? "9+" : unreadCount}</span>
+              )}
+            </button>
+            {showNotif && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowNotif(false)} />
+                <div className="absolute right-0 top-full mt-2 w-80 rounded-xl z-50 max-h-96 overflow-hidden flex flex-col"
+                  style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", boxShadow: "var(--shadow-lg)" }}>
+                  <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid var(--color-border-light)" }}>
+                    <span className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Notifications</span>
+                    {unreadCount > 0 && (
+                      <button className="text-xs font-medium" style={{ color: "var(--color-primary)" }}
+                        onClick={async () => {
+                          await api.post("/notifications/read-all");
+                          setUnreadCount(0);
+                          setNotifications((n) => n.map((x: any) => ({ ...x, isRead: true })));
+                        }}>
+                        <CheckCheck size={12} className="inline mr-1" />Mark all read
+                      </button>
+                    )}
+                  </div>
+                  <div className="flex-1 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <p className="text-xs text-center py-8" style={{ color: "var(--color-text-tertiary)" }}>No notifications</p>
+                    ) : notifications.map((n: any) => (
+                      <div key={n.id} className="px-4 py-3 transition-colors"
+                        style={{ background: n.isRead ? "transparent" : "var(--color-primary-light)", borderBottom: "1px solid var(--color-border-light)" }}>
+                        <p className="text-sm" style={{ color: "var(--color-text-primary)" }}>{n.message}</p>
+                        <p className="text-[10px] mt-1" style={{ color: "var(--color-text-tertiary)" }}>
+                          {new Date(n.createdAt).toLocaleString()}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
 
           {/* User avatar */}
           <div className="relative">
