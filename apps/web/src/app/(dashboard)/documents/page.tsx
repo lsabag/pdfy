@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useDocumentStore } from "@/stores/document-store";
 import { DocumentCard } from "@/components/documents/DocumentCard";
+import { UploadDropzone } from "@/components/documents/UploadDropzone";
 import { api } from "@/lib/api-client";
 import Link from "next/link";
 
@@ -171,6 +172,9 @@ function DocumentsContent() {
             </div>
           </div>
         </div>
+
+        {/* Upload dropzone (hidden, activates via event or modal) */}
+        <UploadDropzone />
 
         {/* Loading */}
         {isLoading && documents.length === 0 && (
