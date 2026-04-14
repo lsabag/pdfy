@@ -35,7 +35,7 @@ function ViewContent() {
   const [showComments, setShowComments] = useState(false);
   const [showSignature, setShowSignature] = useState(false);
   const [showFormFiller, setShowFormFiller] = useState(false);
-  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [pdfDataUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
 
@@ -53,24 +53,24 @@ function ViewContent() {
   const [sigSize, setSigSize] = useState({ w: 180, h: 50 });
   const [isResizing, setIsResizing] = useState(false);
 
-  // Helper to download PDF as blob with auth, handling token issues
-  const downloadPdfBlob = async (id: string): Promise<string | null> => {
+  // Download PDF and convert to data URL (avoids Chrome blob URL partitioning block)
+  const downloadPdfDataUrl = async (id: string): Promise<string | null> => {
     try {
-      const pdfRes = await api.get(`/documents/${id}/download`, { responseType: "blob" });
-      // Check if response is actually a PDF (not a JSON error wrapped in blob)
-      const blob = pdfRes.data as Blob;
-      if (blob.type === "application/json" || blob.size < 100) {
-        // Likely an error response, try to read it
-        const text = await blob.text();
+      const pdfRes = await api.get(`/documents/${id}/download`, { responseType: "arraybuffer" });
+      const bytes = new Uint8Array(pdfRes.data);
+      // Check if it's actually a PDF
+      if (bytes.length < 100 || bytes[0] !== 0x25 || bytes[1] !== 0x50) {
+        const text = new TextDecoder().decode(bytes);
         if (text.includes("Unauthorized") || text.includes("error")) {
-          console.warn("PDF download auth failed, token may be expired");
-          // Try re-login: force user to re-authenticate
           localStorage.removeItem("pdfy-token");
           window.location.href = "/login";
           return null;
         }
       }
-      return URL.createObjectURL(blob);
+      // Convert to base64 data URL
+      let binary = "";
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      return "data:application/pdf;base64," + btoa(binary);
     } catch {
       return null;
     }
@@ -82,12 +82,12 @@ function ViewContent() {
       try {
         const { data } = await api.get(`/documents/${docId}`);
         setDocument(data);
-        const blobUrl = await downloadPdfBlob(docId);
+        const blobUrl = await downloadPdfDataUrl(docId);
         if (blobUrl) setPdfBlobUrl(blobUrl);
       } catch { router.push("/dashboard"); }
       finally { setLoading(false); }
     })();
-    return () => { if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl); };
+    return () => {}; // data URLs don't need cleanup
   }, [docId, router]);
 
   // Drag + resize handlers for signature placement
@@ -117,10 +117,10 @@ function ViewContent() {
 
   // Reload PDF after an edit, saving current version for undo
   const reloadPdf = async () => {
-    if (pdfBlobUrl) {
-      setVersionHistory((prev) => [...prev, pdfBlobUrl]);
+    if (pdfDataUrl) {
+      setVersionHistory((prev) => [...prev, pdfDataUrl]);
     }
-    const newUrl = await downloadPdfBlob(docId!);
+    const newUrl = await downloadPdfDataUrl(docId!);
     if (newUrl) setPdfBlobUrl(newUrl);
     const { data: freshDoc } = await api.get(`/documents/${docId}`);
     setDocument(freshDoc);
@@ -222,7 +222,7 @@ function ViewContent() {
     );
   }
 
-  const viewUrl = pdfBlobUrl || "";
+  const viewUrl = pdfDataUrl || "";
 
   return (
     <div className="flex flex-col h-[calc(100vh-var(--topbar-height)-48px)] -m-6">
@@ -343,10 +343,10 @@ function ViewContent() {
             Drag to reposition. Click "Confirm" to stamp on page {currentPage}.
           </span>
           <div className="flex gap-2">
-            <button className="btn btn-secondary text-sm h-8" onClick={() => {
+            <button type="button" className="btn btn-secondary text-sm h-8" onClick={() => {
               setPlacingSignature(false); setSignatureImage(null); setSigPlaced(false);
             }}>Cancel</button>
-            <button className="btn btn-primary text-sm h-8" onClick={async () => {
+            <button type="button" className="btn btn-primary text-sm h-8" onClick={async () => {
               if (!signatureImage || !pdfContainerRef.current) return;
               // Convert screen position to PDF coordinates
               const container = pdfContainerRef.current;

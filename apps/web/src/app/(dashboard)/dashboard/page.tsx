@@ -217,7 +217,7 @@ export default function DashboardPage() {
           <table className="w-full">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--color-border-light)" }}>
-                <th className="w-8 px-3 py-3"><input type="checkbox" className="w-4 h-4 rounded" /></th>
+                <th className="w-8 px-3 py-3"><input id="select-all-home" name="selectAll" type="checkbox" className="w-4 h-4 rounded" aria-label="Select all" /></th>
                 {["NAME", "SHARING", "OPENED", "SIZE"].map((h) => (
                   <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider"
                     style={{ color: "var(--color-text-tertiary)" }}>{h}</th>
@@ -232,7 +232,7 @@ export default function DashboardPage() {
                   onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-hover)")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                   onClick={() => router.push(`/dashboard/view?id=${doc.id}`)}>
-                  <td className="px-3 py-3"><input type="checkbox" className="w-4 h-4 rounded" onClick={(e) => e.stopPropagation()} /></td>
+                  <td className="px-3 py-3"><input id={`select-${doc.id}`} name="selectDoc" type="checkbox" className="w-4 h-4 rounded" onClick={(e) => e.stopPropagation()} aria-label={`Select ${doc.name}`} /></td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0" style={{ background: "#FDE8E8" }}>

@@ -217,7 +217,7 @@ function DocumentsContent() {
                 onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.background = "var(--color-primary-light)"; }}
                 onDragLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
                 onDrop={(e) => { e.preventDefault(); e.currentTarget.style.background = "transparent"; const id = e.dataTransfer.getData("text/docId"); if (id) moveToFolder(id, f.id); }}>
-                <input type="checkbox" className="w-4 h-4 rounded" onClick={(e) => e.preventDefault()} />
+                <input id={`folder-select-${f.id}`} name="selectFolder" type="checkbox" className="w-4 h-4 rounded" onClick={(e) => e.preventDefault()} aria-label={`Select ${f.name}`} />
                 <FolderOpen size={20} style={{ color: f.color || "var(--color-text-tertiary)" }} />
                 <span className="text-sm font-medium flex-1" style={{ color: "var(--color-text-primary)" }}>{f.name}</span>
                 <span className="text-xs" style={{ color: "var(--color-text-tertiary)" }}>Folder</span>
@@ -231,7 +231,7 @@ function DocumentsContent() {
                 onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-surface-hover)")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 onClick={() => router.push(`/dashboard/view?id=${doc.id}`)}>
-                <input type="checkbox" className="w-4 h-4 rounded" onClick={(e) => e.stopPropagation()} />
+                <input id={`doc-select-${doc.id}`} name="selectDoc" type="checkbox" className="w-4 h-4 rounded" onClick={(e) => e.stopPropagation()} aria-label={`Select ${doc.name}`} />
                 <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0" style={{ background: "#FDE8E8" }}>
                   <span className="text-[9px] font-bold" style={{ color: "#D7373F" }}>PDF</span>
                 </div>
