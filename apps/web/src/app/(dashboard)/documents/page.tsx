@@ -131,10 +131,6 @@ function DocumentsContent() {
             <button className="btn-icon" style={{ width: 32, height: 32 }} onClick={() => setShowNewFolder(true)} title="New folder">
               <Plus size={15} />
             </button>
-            <button className="btn btn-secondary text-sm h-9 px-4"
-              onClick={() => document.dispatchEvent(new CustomEvent("pdfy:open-upload"))}>
-              <Upload size={14} /> Upload files
-            </button>
           </div>
         </div>
 
