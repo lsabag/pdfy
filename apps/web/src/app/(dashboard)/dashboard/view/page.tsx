@@ -53,24 +53,20 @@ function ViewContent() {
   const [sigSize, setSigSize] = useState({ w: 180, h: 50 });
   const [isResizing, setIsResizing] = useState(false);
 
-  // Download PDF and convert to data URL (avoids Chrome blob URL partitioning block)
-  const downloadPdfDataUrl = async (id: string): Promise<string | null> => {
+  // Download PDF as blob URL (works with <embed>, no partitioning issue)
+  const downloadPdfUrl = async (id: string): Promise<string | null> => {
     try {
-      const pdfRes = await api.get(`/documents/${id}/download`, { responseType: "arraybuffer" });
-      const bytes = new Uint8Array(pdfRes.data);
-      // Check if it's actually a PDF
-      if (bytes.length < 100 || bytes[0] !== 0x25 || bytes[1] !== 0x50) {
-        const text = new TextDecoder().decode(bytes);
+      const pdfRes = await api.get(`/documents/${id}/download`, { responseType: "blob" });
+      const blob = pdfRes.data as Blob;
+      if (blob.size < 100 || blob.type === "application/json") {
+        const text = await blob.text();
         if (text.includes("Unauthorized") || text.includes("error")) {
           localStorage.removeItem("pdfy-token");
           window.location.href = "/login";
           return null;
         }
       }
-      // Convert to base64 data URL
-      let binary = "";
-      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-      return "data:application/pdf;base64," + btoa(binary);
+      return URL.createObjectURL(blob);
     } catch {
       return null;
     }
@@ -82,12 +78,12 @@ function ViewContent() {
       try {
         const { data } = await api.get(`/documents/${docId}`);
         setDocument(data);
-        const blobUrl = await downloadPdfDataUrl(docId);
+        const blobUrl = await downloadPdfUrl(docId);
         if (blobUrl) setPdfDataUrl(blobUrl);
       } catch { router.push("/dashboard"); }
       finally { setLoading(false); }
     })();
-    return () => {}; // data URLs don't need cleanup
+    return () => { if (pdfDataUrl) URL.revokeObjectURL(pdfDataUrl); };
   }, [docId, router]);
 
   // Drag + resize handlers for signature placement
@@ -119,26 +115,28 @@ function ViewContent() {
   const [pdfKey, setPdfKey] = useState(0); // Force iframe remount
 
   const reloadPdf = async () => {
+    // Save old URL for undo
     if (pdfDataUrl) {
       setVersionHistory((prev) => [...prev, pdfDataUrl]);
     }
-    // 1. Clear PDF and increment key to destroy iframe
+
+    // Clear current PDF
+    const oldUrl = pdfDataUrl;
     setPdfDataUrl(null);
     setPdfKey((k) => k + 1);
+    await new Promise((r) => setTimeout(r, 200));
 
-    // 2. Wait for React to actually render the cleared state
-    await new Promise((r) => setTimeout(r, 300));
+    // Revoke old blob URL
+    if (oldUrl && oldUrl.startsWith("blob:")) URL.revokeObjectURL(oldUrl);
 
-    // 3. Fetch fresh PDF from server
-    const newUrl = await downloadPdfDataUrl(docId!);
-
-    // 4. Set new URL with incremented key to force new iframe
+    // Fetch fresh PDF
+    const newUrl = await downloadPdfUrl(docId!);
     if (newUrl) {
       setPdfKey((k) => k + 1);
       setPdfDataUrl(newUrl);
     }
 
-    // 5. Update document metadata
+    // Update metadata
     try {
       const { data: freshDoc } = await api.get(`/documents/${docId}`);
       setDocument(freshDoc);
@@ -241,7 +239,7 @@ function ViewContent() {
     );
   }
 
-  const viewUrl = pdfDataUrl ? pdfDataUrl + "#toolbar=0&navpanes=0&scrollbar=0" : "";
+  const viewUrl = pdfDataUrl || "";
 
   return (
     <div className="flex flex-col h-[calc(100vh-var(--topbar-height)-48px)] -m-6">
@@ -377,31 +375,28 @@ function ViewContent() {
               if (!iframe) return;
               const iframeRect = iframe.getBoundingClientRect();
 
-              // The iframe displays PDF via Chrome viewer which adds ~3% padding
-              // at top and ~1.5% on sides. We measure relative to iframe and compensate.
-              const iframeW = iframeRect.width;
-              const iframeH = iframeRect.height;
+              // Chrome PDF embed adds internal toolbar (~40px) and margins (~8px sides)
+              // These values are approximate for Chrome's built-in PDF viewer
+              const CHROME_TOOLBAR_H = 40;
+              const CHROME_MARGIN_X = 9;
 
-              // Chrome PDF viewer internal padding (approximate)
-              const PAD_TOP = iframeH * 0.005; // ~0.5% top
-              const PAD_LEFT = iframeW * 0.005; // ~0.5% left
-              // Effective PDF rendering area inside the iframe
-              const renderW = iframeW - PAD_LEFT * 2;
-              const renderH = iframeH - PAD_TOP * 2;
+              // Position relative to the actual PDF content area inside the embed
+              const relX = sigPos.x - iframeRect.left - CHROME_MARGIN_X;
+              const relY = sigPos.y - iframeRect.top - CHROME_TOOLBAR_H;
 
-              // Position relative to the PDF rendering area
-              const relX = sigPos.x - iframeRect.left - PAD_LEFT;
-              const relY = sigPos.y - iframeRect.top - PAD_TOP;
+              // PDF content area size (embed size minus chrome UI)
+              const contentW = iframeRect.width - CHROME_MARGIN_X * 2;
+              const contentH = iframeRect.height - CHROME_TOOLBAR_H;
 
-              // Convert to percentage of PDF page
-              const percentX = Math.max(0, Math.min(1, relX / renderW));
-              const percentY = Math.max(0, Math.min(1, relY / renderH));
+              // Convert to percentage within the PDF page
+              const percentX = Math.max(0, Math.min(1, relX / contentW));
+              const percentY = Math.max(0, Math.min(1, relY / contentH));
 
               // Convert to PDF points
-              const sigWidthPt = (sigSize.w / renderW) * PDF_W;
-              const sigHeightPt = (sigSize.h / renderH) * PDF_H;
+              const sigWidthPt = (sigSize.w / contentW) * PDF_W;
+              const sigHeightPt = (sigSize.h / contentH) * PDF_H;
               const pdfX = percentX * PDF_W;
-              // Flip Y axis (PDF: 0=bottom, screen: 0=top)
+              // Flip Y: screen top->PDF top means PDF Y = high value
               const pdfY = Math.max(0, (1 - percentY) * PDF_H - sigHeightPt);
 
               // DEBUG: show coordinates for calibration
