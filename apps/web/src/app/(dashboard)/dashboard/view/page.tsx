@@ -35,7 +35,7 @@ function ViewContent() {
   const [showComments, setShowComments] = useState(false);
   const [showSignature, setShowSignature] = useState(false);
   const [showFormFiller, setShowFormFiller] = useState(false);
-  const [pdfDataUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [pdfDataUrl, setPdfDataUrl] = useState<string | null>(null);
   const [comments, setComments] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
 
@@ -83,7 +83,7 @@ function ViewContent() {
         const { data } = await api.get(`/documents/${docId}`);
         setDocument(data);
         const blobUrl = await downloadPdfDataUrl(docId);
-        if (blobUrl) setPdfBlobUrl(blobUrl);
+        if (blobUrl) setPdfDataUrl(blobUrl);
       } catch { router.push("/dashboard"); }
       finally { setLoading(false); }
     })();
@@ -120,8 +120,14 @@ function ViewContent() {
     if (pdfDataUrl) {
       setVersionHistory((prev) => [...prev, pdfDataUrl]);
     }
+    // Clear first so iframe re-renders
+    setPdfDataUrl(null);
+    // Small delay to ensure state clears
+    await new Promise(r => setTimeout(r, 100));
     const newUrl = await downloadPdfDataUrl(docId!);
-    if (newUrl) setPdfBlobUrl(newUrl);
+    if (newUrl) {
+      setPdfDataUrl(newUrl);
+    }
     const { data: freshDoc } = await api.get(`/documents/${docId}`);
     setDocument(freshDoc);
   };
@@ -222,7 +228,7 @@ function ViewContent() {
     );
   }
 
-  const viewUrl = pdfDataUrl || "";
+  const viewUrl = pdfDataUrl ? pdfDataUrl + "#toolbar=0&navpanes=0&scrollbar=0" : "";
 
   return (
     <div className="flex flex-col h-[calc(100vh-var(--topbar-height)-48px)] -m-6">
