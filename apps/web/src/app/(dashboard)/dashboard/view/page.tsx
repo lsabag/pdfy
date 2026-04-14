@@ -385,7 +385,7 @@ function ViewContent() {
         {/* PDF viewer */}
         <div ref={pdfContainerRef}
           className="flex-1 overflow-auto flex items-start justify-center p-4 relative"
-          style={{ background: "#525659", cursor: placingSignature && !sigPlaced ? "crosshair" : "default" }}
+          style={{ background: "#525659" /* TODO: extract to --color-viewer-bg */, cursor: placingSignature && !sigPlaced ? "crosshair" : "default" }}
           onClick={(e) => {
             if (placingSignature && !sigPlaced) {
               setSigPos({ x: e.clientX - sigSize.w / 2, y: e.clientY - sigSize.h / 2 });
@@ -468,7 +468,7 @@ function ViewContent() {
               <h3 className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>
                 Comments ({comments.length})
               </h3>
-              <button onClick={() => setShowComments(false)} className="btn-icon" style={{width:28,height:28}}>X</button>
+              <button onClick={() => setShowComments(false)} className="btn-icon" style={{width:28,height:28}} aria-label="Close comments">X</button>
             </div>
             <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
               {comments.length === 0 && (

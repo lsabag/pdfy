@@ -3,7 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  FileText, MessageSquare, Merge, FileSignature, Scissors, FileOutput,
+  FileText, Merge, FileSignature, Scissors, FileOutput,
   RotateCw, Lock, ChevronRight, ChevronLeft, Star, Share2, Clock,
   FolderOpen, Plus, Upload, LayoutGrid, List,
 } from "lucide-react";
@@ -128,7 +128,7 @@ export default function DashboardPage() {
               <FolderOpen size={15} /> Folders
             </h2>
             <button className="text-xs font-medium flex items-center gap-1" style={{ color: "var(--color-primary)" }}
-              onClick={() => setShowNewFolder(true)}>
+              onClick={() => setShowNewFolder(true)} aria-label="New folder">
               <Plus size={12} /> New
             </button>
           </div>
@@ -281,7 +281,7 @@ function AdminBanner() {
     <div className="rounded-xl p-4 mb-6 flex items-center justify-between"
       style={{ background: c.bg, border: `1px solid ${c.border}` }}>
       <p className="text-sm font-medium" style={{ color: c.text }}>{banner.message}</p>
-      <button onClick={() => setDismissed(true)} className="btn-icon" style={{ width: 24, height: 24, background: "transparent", border: "none" }}>
+      <button onClick={() => setDismissed(true)} className="btn-icon" style={{ width: 24, height: 24, background: "transparent", border: "none" }} aria-label="Dismiss">
         <span style={{ color: c.text, fontSize: 16 }}>×</span>
       </button>
     </div>

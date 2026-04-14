@@ -3,9 +3,9 @@
 import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  FolderOpen, Star, ScanLine, MessageCircle, Share2, Users,
-  Upload, LayoutGrid, List, ArrowDown, ChevronDown, FileText,
-  Plus, HardDrive,
+  FolderOpen, Star, Share2, Users,
+  Upload, LayoutGrid, List, ArrowDown, FileText,
+  Plus,
 } from "lucide-react";
 import { useDocumentStore } from "@/stores/document-store";
 import { DocumentCard } from "@/components/documents/DocumentCard";

@@ -38,9 +38,15 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
   const [saveName, setSaveName] = useState("");
   const [showSaveInput, setShowSaveInput] = useState(false);
 
+  // Load saved signatures whenever modal opens (any tab)
+  useEffect(() => {
+    if (isOpen) loadSaved();
+  }, [isOpen]);
+
+  // Also reload when switching to saved tab
   useEffect(() => {
     if (isOpen && tab === "saved") loadSaved();
-  }, [isOpen, tab]);
+  }, [tab]);
 
   useEffect(() => {
     if (isOpen && tab === "draw") initCanvas();
@@ -135,17 +141,22 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
     let data: string | null = null;
     if (tab === "draw") data = getCanvasData();
     else if (tab === "type") data = getTypedSignatureData();
-    if (!data) return;
-    await api.post("/signatures", {
-      name: saveName || "My Signature",
-      type: tab === "draw" ? "DRAW" : "TYPE",
-      data,
-      isDefault: savedSigs.length === 0,
-    });
-    setShowSaveInput(false);
-    setSaveName("");
-    alert("Signature saved!");
-    loadSaved();
+    if (!data) { alert("Please draw or type a signature first"); return; }
+    try {
+      await api.post("/signatures", {
+        name: saveName || "My Signature",
+        type: tab === "draw" ? "DRAW" : "TYPE",
+        data,
+        isDefault: savedSigs.length === 0,
+      });
+      setShowSaveInput(false);
+      setSaveName("");
+      // Reload signatures and switch to Saved tab to show the result
+      await loadSaved();
+      setTab("saved");
+    } catch (err: any) {
+      alert("Failed to save: " + (err.response?.data?.error || err.message));
+    }
   };
 
   const handleDeleteSaved = async (id: string) => {
@@ -172,7 +183,7 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
           <h3 className="text-lg font-semibold" style={{ color: "var(--color-text-primary)" }}>
             Sign Document
           </h3>
-          <button onClick={onClose} className="btn-icon"><X size={18} /></button>
+          <button onClick={onClose} className="btn-icon" aria-label="Close"><X size={18} /></button>
         </div>
 
         {/* Tabs */}

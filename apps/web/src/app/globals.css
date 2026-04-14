@@ -139,6 +139,15 @@ body {
   border-color: var(--color-border);
 }
 
+.btn-danger {
+  background: var(--color-error);
+  color: white;
+  border: none;
+}
+.btn-danger:hover {
+  background: #C62828;
+}
+
 /* Icon button - square, centered icon, visible on all backgrounds */
 .btn-icon {
   display: inline-flex;

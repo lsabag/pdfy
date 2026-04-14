@@ -208,7 +208,7 @@ export default function ProfilePage() {
           Deactivate your account. This will prevent login but your data will be preserved.
         </p>
         {!showDelete ? (
-          <button className="btn" style={{ background: "var(--color-error)", color: "white" }}
+          <button className="btn btn-danger"
             onClick={() => setShowDelete(true)}>
             Deactivate Account
           </button>
@@ -216,7 +216,7 @@ export default function ProfilePage() {
           <div className="flex gap-2">
             <input id="profile-delete-password" name="deletePassword" className="input flex-1" type="password" placeholder="Enter your password to confirm"
               value={deletePw} onChange={(e) => setDeletePw(e.target.value)} aria-label="Password to confirm account deactivation" />
-            <button className="btn" style={{ background: "var(--color-error)", color: "white" }}
+            <button className="btn btn-danger"
               onClick={handleDeleteAccount} disabled={!deletePw}>
               Confirm
             </button>

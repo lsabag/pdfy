@@ -56,8 +56,7 @@ export default function TrashPage() {
               <RotateCcw size={14} /> Restore ({selected.size})
             </button>
             <button
-              className="btn"
-              style={{ background: "var(--color-error)", color: "white" }}
+              className="btn btn-danger"
               onClick={() => handlePermanentDelete([...selected])}
             >
               <Trash2 size={14} /> Delete permanently
