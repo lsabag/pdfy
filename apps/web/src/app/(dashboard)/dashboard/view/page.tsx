@@ -56,7 +56,8 @@ function ViewContent() {
   // Download PDF as blob URL (works with <embed>, no partitioning issue)
   const downloadPdfUrl = async (id: string): Promise<string | null> => {
     try {
-      const pdfRes = await api.get(`/documents/${id}/download`, { responseType: "blob" });
+      // Cache-bust to always get fresh PDF after edits
+      const pdfRes = await api.get(`/documents/${id}/download?t=${Date.now()}`, { responseType: "blob" });
       const blob = pdfRes.data as Blob;
       if (blob.size < 100 || blob.type === "application/json") {
         const text = await blob.text();
@@ -115,9 +116,11 @@ function ViewContent() {
   const [pdfKey, setPdfKey] = useState(0); // Force iframe remount
 
   const reloadPdf = async () => {
-    // Force a hard reload of the page to show updated PDF
-    // This is the most reliable way since <embed> caches aggressively
-    window.location.reload();
+    // Navigate away briefly then back - forces fresh PDF load
+    // window.location.reload() doesn't bypass browser cache
+    const url = window.location.href;
+    const sep = url.includes("?") ? "&" : "?";
+    window.location.href = url + sep + "_t=" + Date.now();
   };
 
   const handleUndo = async () => {
@@ -352,19 +355,19 @@ function ViewContent() {
               if (!iframe) return;
               const iframeRect = iframe.getBoundingClientRect();
 
-              // Chrome PDF embed internal offsets
-              // With <embed>, toolbar may or may not show. Use 0 and let
-              // the percentage-based calculation handle it directly.
-              const CHROME_TOOLBAR_H = 0;
-              const CHROME_MARGIN_X = 0;
+              // Chrome PDF embed adds a small toolbar/padding at the top
+              // "זזה קצת למטה" = signature appears slightly below click point
+              // This means percentY is slightly too high -> need to subtract top offset
+              const CHROME_TOP_OFFSET = 35; // pixels of Chrome UI at top of embed
+              const CHROME_SIDE_OFFSET = 0;
 
               // Position relative to the actual PDF content area inside the embed
-              const relX = sigPos.x - iframeRect.left - CHROME_MARGIN_X;
-              const relY = sigPos.y - iframeRect.top - CHROME_TOOLBAR_H;
+              const relX = sigPos.x - iframeRect.left - CHROME_SIDE_OFFSET;
+              const relY = sigPos.y - iframeRect.top - CHROME_TOP_OFFSET;
 
               // PDF content area size (embed size minus chrome UI)
-              const contentW = iframeRect.width - CHROME_MARGIN_X * 2;
-              const contentH = iframeRect.height - CHROME_TOOLBAR_H;
+              const contentW = iframeRect.width - CHROME_SIDE_OFFSET * 2;
+              const contentH = iframeRect.height - CHROME_TOP_OFFSET;
 
               // Convert to percentage within the PDF page
               const percentX = Math.max(0, Math.min(1, relX / contentW));
@@ -377,9 +380,9 @@ function ViewContent() {
               // Flip Y: screen top->PDF top means PDF Y = high value
               const pdfY = Math.max(0, (1 - percentY) * PDF_H - sigHeightPt);
 
-              // DEBUG: show coordinates for calibration
-              const debugInfo = `Click: screen(${Math.round(sigPos.x)},${Math.round(sigPos.y)}) | iframe(top=${Math.round(iframeRect.top)},left=${Math.round(iframeRect.left)},w=${Math.round(iframeRect.width)},h=${Math.round(iframeRect.height)}) | rel(${Math.round(sigPos.x-iframeRect.left)},${Math.round(sigPos.y-iframeRect.top)}) | pdf(x=${Math.round(pdfX)},y=${Math.round(pdfY)}) | page ${currentPage}`;
-              console.log("SIG DEBUG:", debugInfo);
+              // DEBUG: alert coordinates for calibration (before reload clears console)
+              const debugInfo = `rel(${Math.round(sigPos.x-iframeRect.left)},${Math.round(sigPos.y-iframeRect.top)}) → pdf(${Math.round(pdfX)},${Math.round(pdfY)}) embed(${Math.round(iframeRect.width)}x${Math.round(iframeRect.height)})`;
+              alert("SIG: " + debugInfo);
 
               try {
                 await api.post(`/documents/${docId}/apply-signature`, {
