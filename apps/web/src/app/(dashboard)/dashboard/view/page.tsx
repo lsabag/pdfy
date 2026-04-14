@@ -127,12 +127,14 @@ function ViewContent() {
   };
 
   const handleUndo = async () => {
-    if (versionHistory.length === 0) { alert("No previous version to undo to"); return; }
-    // For now, undo just reloads - full undo would need server-side version restore
-    const prevUrl = versionHistory[versionHistory.length - 1];
-    setVersionHistory((prev) => prev.slice(0, -1));
-    setPdfBlobUrl(prevUrl);
-    alert("Reverted to previous version (visual only). Use server version history for permanent undo.");
+    if (!confirm("Revert to the original uploaded version? All edits (signatures, page changes) will be removed.")) return;
+    try {
+      await api.post(`/documents/${docId}/undo`);
+      await reloadPdf();
+      alert("Reverted to original version.");
+    } catch (err: any) {
+      alert("Undo failed: " + (err.response?.data?.error || err.message));
+    }
   };
 
   const handleAddComment = async () => {

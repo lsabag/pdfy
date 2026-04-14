@@ -1162,6 +1162,72 @@ app.get('/api/admin/invites', auth, async (c) => {
   return c.json(invs);
 });
 
+// ═══════════════════════ DOCUMENT VERSION HISTORY ═══════════════════════
+// Undo: revert to the original uploaded version
+app.post('/api/documents/:id/undo', auth, async (c) => {
+  const user = c.get('user');
+  const d = db(c);
+  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
+  if (!doc || doc.ownerId !== user.id) return c.json({ error: 'Not found' }, 404);
+
+  // The original file is always at original.pdf (or original.ext)
+  const originalKey = doc.storageKey.replace(/\/current\.pdf$/, '/original.pdf');
+  const object = await c.env.STORAGE.get(originalKey);
+  if (!object) return c.json({ error: 'Original version not found' }, 404);
+
+  // Copy original back to current
+  const buffer = await object.arrayBuffer();
+  const currentKey = doc.storageKey.includes('/current.pdf') ? doc.storageKey : originalKey.replace('/original.pdf', '/current.pdf');
+  await c.env.STORAGE.put(currentKey, buffer, { httpMetadata: { contentType: 'application/pdf' } });
+
+  // Get page count from original
+  let pageCount = doc.pageCount;
+  try {
+    const pdfDoc = await PDFDocument.load(buffer, { ignoreEncryption: true });
+    pageCount = pdfDoc.getPageCount();
+  } catch {}
+
+  await d.update(schema.documents).set({
+    storageKey: currentKey,
+    sizeBytes: buffer.byteLength,
+    pageCount,
+    version: 1,
+    updatedAt: new Date().toISOString(),
+  }).where(eq(schema.documents.id, doc.id));
+
+  return c.json({ message: 'Reverted to original version', pageCount, sizeBytes: buffer.byteLength });
+});
+
+// ═══════════════════════ ADMIN SETTINGS ═══════════════════════
+// Get all settings
+app.get('/api/admin/settings', auth, async (c) => {
+  const user = c.get('user');
+  if (user.role !== 'OWNER' && user.role !== 'ADMIN') return c.json({ error: 'Forbidden' }, 403);
+  const d = db(c);
+  const rows = await d.select().from(schema.settings).all();
+  const result: Record<string, string> = {};
+  for (const row of rows) result[row.key] = row.value;
+  return c.json(result);
+});
+
+// Save settings (batch upsert)
+app.post('/api/admin/settings', auth, async (c) => {
+  const user = c.get('user');
+  if (user.role !== 'OWNER' && user.role !== 'ADMIN') return c.json({ error: 'Forbidden' }, 403);
+  const body = await c.req.json();
+  const d = db(c);
+  const now = new Date().toISOString();
+  for (const [key, value] of Object.entries(body)) {
+    const existing = await d.select().from(schema.settings).where(eq(schema.settings.key, key)).get();
+    if (existing) {
+      await d.update(schema.settings).set({ value: String(value), updatedAt: now }).where(eq(schema.settings.key, key));
+    } else {
+      await d.insert(schema.settings).values({ key, value: String(value), updatedAt: now });
+    }
+  }
+  return c.json({ success: true });
+});
+
 // ═══════════════════════ ADMIN BANNER ═══════════════════════
 // Get current banner (public - any logged-in user)
 app.get('/api/admin/banner', auth, async (c) => {

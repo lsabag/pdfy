@@ -124,6 +124,13 @@ export const notifications = sqliteTable('notifications', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 });
 
+// Key-value settings store
+export const settings = sqliteTable('settings', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+});
+
 export const conversions = sqliteTable('conversions', {
   id: text('id').primaryKey(),
   documentId: text('document_id').notNull().references(() => documents.id),
