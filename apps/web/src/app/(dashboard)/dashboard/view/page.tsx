@@ -360,26 +360,37 @@ function ViewContent() {
               const PDF_W = 612;
               const PDF_H = 792;
 
-              // Our iframe is sized: (816 * zoom / 100) x (1056 * zoom / 100)
-              // At 100% zoom: 816px = 612pt, so 1pt = 816/612 = 1.3333 px
-              const pxPerPoint = (816 * zoom / 100) / PDF_W;
-
-              // Get iframe position on screen
+              // Get iframe on screen
               const iframe = pdfContainerRef.current.querySelector("iframe");
               if (!iframe) return;
               const iframeRect = iframe.getBoundingClientRect();
 
-              // Signature position is in viewport (fixed) coordinates
-              // Convert to position relative to iframe top-left
-              const relPixelX = sigPos.x - iframeRect.left;
-              const relPixelY = sigPos.y - iframeRect.top;
+              // The iframe displays PDF via Chrome viewer which adds ~3% padding
+              // at top and ~1.5% on sides. We measure relative to iframe and compensate.
+              const iframeW = iframeRect.width;
+              const iframeH = iframeRect.height;
 
-              // Convert screen pixels to PDF points
-              const pdfX = Math.max(0, Math.min(PDF_W, relPixelX / pxPerPoint));
-              // PDF origin is bottom-left, screen origin is top-left
-              const sigHeightPt = sigSize.h / pxPerPoint;
-              const sigWidthPt = sigSize.w / pxPerPoint;
-              const pdfY = Math.max(0, PDF_H - (relPixelY / pxPerPoint) - sigHeightPt);
+              // Chrome PDF viewer internal padding (approximate)
+              const PAD_TOP = iframeH * 0.005; // ~0.5% top
+              const PAD_LEFT = iframeW * 0.005; // ~0.5% left
+              // Effective PDF rendering area inside the iframe
+              const renderW = iframeW - PAD_LEFT * 2;
+              const renderH = iframeH - PAD_TOP * 2;
+
+              // Position relative to the PDF rendering area
+              const relX = sigPos.x - iframeRect.left - PAD_LEFT;
+              const relY = sigPos.y - iframeRect.top - PAD_TOP;
+
+              // Convert to percentage of PDF page
+              const percentX = Math.max(0, Math.min(1, relX / renderW));
+              const percentY = Math.max(0, Math.min(1, relY / renderH));
+
+              // Convert to PDF points
+              const sigWidthPt = (sigSize.w / renderW) * PDF_W;
+              const sigHeightPt = (sigSize.h / renderH) * PDF_H;
+              const pdfX = percentX * PDF_W;
+              // Flip Y axis (PDF: 0=bottom, screen: 0=top)
+              const pdfY = Math.max(0, (1 - percentY) * PDF_H - sigHeightPt);
 
               try {
                 await api.post(`/documents/${docId}/apply-signature`, {
