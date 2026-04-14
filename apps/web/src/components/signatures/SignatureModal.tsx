@@ -64,10 +64,9 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    // White background so signature is visible in all PDF viewers
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = "#111111";
+    // Transparent background - only the signature strokes are visible on the PDF
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "#000000";
     ctx.lineWidth = 2.5;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -119,9 +118,9 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
     canvas.height = canvasHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
-    ctx.fillStyle = "white";
-    ctx.fillRect(0, 0, canvas.width, canvasHeight);
-    ctx.fillStyle = "#111111";
+    // Transparent background - only text is visible on the PDF
+    ctx.clearRect(0, 0, canvas.width, canvasHeight);
+    ctx.fillStyle = "#000000";
     ctx.font = `${sigFontSize}px ${sigFont}`;
     ctx.textBaseline = "top";
     lines.forEach((line, i) => {

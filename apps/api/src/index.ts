@@ -941,13 +941,11 @@ app.post('/api/documents/:id/apply-signature', auth, async (c) => {
   const page = pdfDoc.getPage(pageIdx);
   const { width: pageWidth, height: pageHeight } = page.getSize();
 
-  // Place the signature - x,y are percentages from top-left in the UI
-  // pdf-lib uses bottom-left origin, so flip Y
+  // Frontend sends coordinates in PDF bottom-left origin (already converted)
   const sigWidth = width || 200;
   const sigHeight = height || 60;
   const sigX = x || 100;
-  // Convert from top-origin Y to bottom-origin Y
-  const sigY = pageHeight - (y || 100) - sigHeight;
+  const sigY = y || 100; // Already in PDF coordinates (0=bottom)
 
   page.drawImage(pngImage, {
     x: sigX,
