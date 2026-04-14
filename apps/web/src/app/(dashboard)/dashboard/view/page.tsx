@@ -437,13 +437,13 @@ function ViewContent() {
               setSigPlaced(true);
             }
           }}>
-          <iframe key={pdfKey} src={viewUrl} className="rounded-sm shadow-xl"
+          <embed key={pdfKey} src={viewUrl} type="application/pdf"
+            className="rounded-sm shadow-xl"
             style={{
               width: `${(816 * zoom) / 100}px`, height: `${(1056 * zoom) / 100}px`,
               maxWidth: "100%", border: "none", background: "white",
               pointerEvents: placingSignature ? "none" : "auto",
-            }}
-            title={document.name} />
+            }} />
 
           {/* Signature preview following cursor */}
           {placingSignature && signatureImage && !sigPlaced && (
