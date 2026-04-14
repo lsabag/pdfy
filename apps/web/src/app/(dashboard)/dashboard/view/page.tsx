@@ -122,15 +122,27 @@ function ViewContent() {
     if (pdfDataUrl) {
       setVersionHistory((prev) => [...prev, pdfDataUrl]);
     }
+    // 1. Clear PDF and increment key to destroy iframe
     setPdfDataUrl(null);
+    setPdfKey((k) => k + 1);
+
+    // 2. Wait for React to actually render the cleared state
+    await new Promise((r) => setTimeout(r, 300));
+
+    // 3. Fetch fresh PDF from server
     const newUrl = await downloadPdfDataUrl(docId!);
+
+    // 4. Set new URL with incremented key to force new iframe
     if (newUrl) {
-      // Force iframe to fully remount by changing key
       setPdfKey((k) => k + 1);
       setPdfDataUrl(newUrl);
     }
-    const { data: freshDoc } = await api.get(`/documents/${docId}`);
-    setDocument(freshDoc);
+
+    // 5. Update document metadata
+    try {
+      const { data: freshDoc } = await api.get(`/documents/${docId}`);
+      setDocument(freshDoc);
+    } catch {}
   };
 
   const handleUndo = async () => {
@@ -391,6 +403,10 @@ function ViewContent() {
               const pdfX = percentX * PDF_W;
               // Flip Y axis (PDF: 0=bottom, screen: 0=top)
               const pdfY = Math.max(0, (1 - percentY) * PDF_H - sigHeightPt);
+
+              // DEBUG: show coordinates for calibration
+              const debugInfo = `Click: screen(${Math.round(sigPos.x)},${Math.round(sigPos.y)}) | iframe(top=${Math.round(iframeRect.top)},left=${Math.round(iframeRect.left)},w=${Math.round(iframeRect.width)},h=${Math.round(iframeRect.height)}) | rel(${Math.round(sigPos.x-iframeRect.left)},${Math.round(sigPos.y-iframeRect.top)}) | pdf(x=${Math.round(pdfX)},y=${Math.round(pdfY)}) | page ${currentPage}`;
+              console.log("SIG DEBUG:", debugInfo);
 
               try {
                 await api.post(`/documents/${docId}/apply-signature`, {
