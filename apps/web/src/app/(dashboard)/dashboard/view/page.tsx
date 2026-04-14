@@ -355,27 +355,38 @@ function ViewContent() {
             }}>Cancel</button>
             <button type="button" className="btn btn-primary text-sm h-8" onClick={async () => {
               if (!signatureImage || !pdfContainerRef.current) return;
-              // Convert screen position to PDF coordinates
-              const container = pdfContainerRef.current;
-              const iframe = container.querySelector("iframe");
+
+              // PDF standard page size in points
+              const PDF_W = 612;
+              const PDF_H = 792;
+
+              // Our iframe is sized: (816 * zoom / 100) x (1056 * zoom / 100)
+              // At 100% zoom: 816px = 612pt, so 1pt = 816/612 = 1.3333 px
+              const pxPerPoint = (816 * zoom / 100) / PDF_W;
+
+              // Get iframe position on screen
+              const iframe = pdfContainerRef.current.querySelector("iframe");
               if (!iframe) return;
               const iframeRect = iframe.getBoundingClientRect();
-              const pdfW = 612; // standard PDF width in points
-              const pdfH = 792; // standard PDF height in points
-              const scaleX = pdfW / iframeRect.width;
-              const scaleY = pdfH / iframeRect.height;
-              const relX = (sigPos.x - iframeRect.left) * scaleX;
-              const relY = (sigPos.y - iframeRect.top) * scaleY;
-              // pdf-lib uses bottom-left origin
-              const pdfX = Math.max(0, relX);
-              const pdfY = Math.max(0, pdfH - relY - (sigSize.h * scaleY));
+
+              // Signature position is in viewport (fixed) coordinates
+              // Convert to position relative to iframe top-left
+              const relPixelX = sigPos.x - iframeRect.left;
+              const relPixelY = sigPos.y - iframeRect.top;
+
+              // Convert screen pixels to PDF points
+              const pdfX = Math.max(0, Math.min(PDF_W, relPixelX / pxPerPoint));
+              // PDF origin is bottom-left, screen origin is top-left
+              const sigHeightPt = sigSize.h / pxPerPoint;
+              const sigWidthPt = sigSize.w / pxPerPoint;
+              const pdfY = Math.max(0, PDF_H - (relPixelY / pxPerPoint) - sigHeightPt);
 
               try {
                 await api.post(`/documents/${docId}/apply-signature`, {
                   signatureData: signatureImage,
                   pageNumber: currentPage,
                   x: pdfX, y: pdfY,
-                  width: sigSize.w * scaleX, height: sigSize.h * scaleY,
+                  width: sigWidthPt, height: sigHeightPt,
                 });
                 await reloadPdf();
                 setPlacingSignature(false); setSignatureImage(null); setSigPlaced(false);
