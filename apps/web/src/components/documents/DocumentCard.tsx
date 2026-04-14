@@ -6,7 +6,7 @@ import {
   Edit3, FolderInput, Copy, Lock, Minimize2, FileOutput,
   RotateCw, Scissors, Merge, FileImage, FileSpreadsheet, Pen,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useDocumentStore } from "@/stores/document-store";
 import { api } from "@/lib/api-client";
 
@@ -67,6 +67,8 @@ export function DocumentCard({
 }: DocumentCardProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
+  const menuRef = useRef<HTMLDivElement>(null);
   const [isRenaming, setIsRenaming] = useState(false);
   const [thumbUrl, setThumbUrl] = useState<string | null>(null);
   const [newName, setNewName] = useState(name);
@@ -74,6 +76,38 @@ export function DocumentCard({
   const { toggleFavorite, deleteDocument, fetchDocuments } = useDocumentStore();
 
   const closeMenu = () => { setShowMenu(false); setMenuPos(null); };
+
+  // Smart position menu after it renders
+  useEffect(() => {
+    if (!showMenu || !menuPos || !menuRef.current) return;
+    const menu = menuRef.current;
+    const menuH = menu.offsetHeight;
+    const menuW = menu.offsetWidth;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const pad = 8;
+
+    let x = menuPos.x;
+    let y = menuPos.y;
+
+    // Horizontal: keep within viewport
+    if (x + menuW > vw - pad) x = vw - menuW - pad;
+    if (x < pad) x = pad;
+
+    // Vertical: if menu overflows bottom, open upward
+    if (y + menuH > vh - pad) {
+      // Try opening above the click point
+      const above = menuPos.y - menuH - 8;
+      if (above > pad) {
+        y = above;
+      } else {
+        // Can't fit above either - position at top and allow scroll
+        y = pad;
+      }
+    }
+
+    setMenuStyle({ left: x, top: y });
+  }, [showMenu, menuPos]);
 
   // Load PDF thumbnail preview
   useEffect(() => {
@@ -260,13 +294,15 @@ export function DocumentCard({
       {showMenu && menuPos && (
         <>
           <div className="fixed inset-0 z-[9998]" onClick={closeMenu} />
-          <div className="fixed py-1 rounded-lg z-[9999] max-h-[70vh] overflow-y-auto w-52"
+          <div ref={menuRef}
+            className="fixed py-1 rounded-lg z-[9999] w-52"
             style={{
               background: "var(--color-surface)",
               border: "1px solid var(--color-border)",
               boxShadow: "0 8px 30px rgba(0,0,0,0.16)",
-              left: Math.min(menuPos.x, window.innerWidth - 220),
-              top: Math.min(menuPos.y, window.innerHeight - 400),
+              maxHeight: "calc(100vh - 16px)",
+              overflowY: "auto",
+              ...menuStyle,
             }}>
 
                     {/* Basic actions */}
