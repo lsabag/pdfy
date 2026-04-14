@@ -115,32 +115,9 @@ function ViewContent() {
   const [pdfKey, setPdfKey] = useState(0); // Force iframe remount
 
   const reloadPdf = async () => {
-    // Save old URL for undo
-    if (pdfDataUrl) {
-      setVersionHistory((prev) => [...prev, pdfDataUrl]);
-    }
-
-    // Clear current PDF
-    const oldUrl = pdfDataUrl;
-    setPdfDataUrl(null);
-    setPdfKey((k) => k + 1);
-    await new Promise((r) => setTimeout(r, 200));
-
-    // Revoke old blob URL
-    if (oldUrl && oldUrl.startsWith("blob:")) URL.revokeObjectURL(oldUrl);
-
-    // Fetch fresh PDF
-    const newUrl = await downloadPdfUrl(docId!);
-    if (newUrl) {
-      setPdfKey((k) => k + 1);
-      setPdfDataUrl(newUrl);
-    }
-
-    // Update metadata
-    try {
-      const { data: freshDoc } = await api.get(`/documents/${docId}`);
-      setDocument(freshDoc);
-    } catch {}
+    // Force a hard reload of the page to show updated PDF
+    // This is the most reliable way since <embed> caches aggressively
+    window.location.reload();
   };
 
   const handleUndo = async () => {
@@ -375,10 +352,11 @@ function ViewContent() {
               if (!iframe) return;
               const iframeRect = iframe.getBoundingClientRect();
 
-              // Chrome PDF embed adds internal toolbar (~40px) and margins (~8px sides)
-              // These values are approximate for Chrome's built-in PDF viewer
-              const CHROME_TOOLBAR_H = 40;
-              const CHROME_MARGIN_X = 9;
+              // Chrome PDF embed internal offsets
+              // With <embed>, toolbar may or may not show. Use 0 and let
+              // the percentage-based calculation handle it directly.
+              const CHROME_TOOLBAR_H = 0;
+              const CHROME_MARGIN_X = 0;
 
               // Position relative to the actual PDF content area inside the embed
               const relX = sigPos.x - iframeRect.left - CHROME_MARGIN_X;
