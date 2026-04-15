@@ -355,34 +355,27 @@ function ViewContent() {
               if (!iframe) return;
               const iframeRect = iframe.getBoundingClientRect();
 
-              // Chrome PDF embed adds a small toolbar/padding at the top
-              // "זזה קצת למטה" = signature appears slightly below click point
-              // This means percentY is slightly too high -> need to subtract top offset
-              const CHROME_TOP_OFFSET = 35; // pixels of Chrome UI at top of embed
-              const CHROME_SIDE_OFFSET = 0;
+              // Chrome renders PDF scaled to fit embed WIDTH, toolbar shifts start down.
+              // Both axes use width-based scale: embedWidth / PDF_W = 816/612 = 4/3
+              const CHROME_TOP_OFFSET = 35; // toolbar height in px
+              const relX = sigPos.x - iframeRect.left;
+              const relY = sigPos.y - iframeRect.top - CHROME_TOP_OFFSET; // from PDF content start
+              const scale = iframeRect.width / PDF_W; // = 4/3 px per pt
 
-              // Position relative to the actual PDF content area inside the embed
-              const relX = sigPos.x - iframeRect.left - CHROME_SIDE_OFFSET;
-              const relY = sigPos.y - iframeRect.top - CHROME_TOP_OFFSET;
+              const pdfX = Math.max(0, relX / scale);
+              const sigWidthPt = sigSize.w / scale;
+              const sigHeightPt = sigSize.h / scale;
+              // pdfY = bottom of signature in PDF points (origin bottom-left)
+              const pdfY = Math.max(0, PDF_H - (relY + sigSize.h) / scale);
 
-              // PDF content area size (embed size minus chrome UI)
-              const contentW = iframeRect.width - CHROME_SIDE_OFFSET * 2;
-              const contentH = iframeRect.height - CHROME_TOP_OFFSET;
-
-              // Convert to percentage within the PDF page
-              const percentX = Math.max(0, Math.min(1, relX / contentW));
-              const percentY = Math.max(0, Math.min(1, relY / contentH));
-
-              // Convert to PDF points
-              const sigWidthPt = (sigSize.w / contentW) * PDF_W;
-              const sigHeightPt = (sigSize.h / contentH) * PDF_H;
-              const pdfX = percentX * PDF_W;
-              // Flip Y: screen top->PDF top means PDF Y = high value
-              const pdfY = Math.max(0, (1 - percentY) * PDF_H - sigHeightPt);
-
-              // DEBUG: alert coordinates for calibration (before reload clears console)
-              const debugInfo = `rel(${Math.round(sigPos.x-iframeRect.left)},${Math.round(sigPos.y-iframeRect.top)}) → pdf(${Math.round(pdfX)},${Math.round(pdfY)}) embed(${Math.round(iframeRect.width)}x${Math.round(iframeRect.height)})`;
-              alert("SIG: " + debugInfo);
+              // DEBUG: verify center alignment (should match click center)
+              const clickCenterPt = (relY + sigSize.h / 2) / scale; // pt from page top
+              const placedCenterPt = PDF_H - (pdfY + sigHeightPt / 2); // pt from page top
+              alert(
+                `לחצת ב: ${(clickCenterPt / PDF_H * 100).toFixed(1)}% מראש הדף\n` +
+                `ממוקם ב: ${(placedCenterPt / PDF_H * 100).toFixed(1)}% מראש הדף\n` +
+                `pdfY=${Math.round(pdfY)} sigH=${Math.round(sigHeightPt)}pt`
+              );
 
               try {
                 await api.post(`/documents/${docId}/apply-signature`, {

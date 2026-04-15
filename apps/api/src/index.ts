@@ -945,7 +945,7 @@ app.post('/api/documents/:id/apply-signature', auth, async (c) => {
   const sigWidth = width || 200;
   const sigHeight = height || 60;
   const sigX = x || 100;
-  const sigY = y || 100; // Already in PDF coordinates (0=bottom)
+  const sigY = y || 100;
 
   page.drawImage(pngImage, {
     x: sigX,
