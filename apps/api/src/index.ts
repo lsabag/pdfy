@@ -941,11 +941,17 @@ app.post('/api/documents/:id/apply-signature', auth, async (c) => {
   const page = pdfDoc.getPage(pageIdx);
   const { width: pageWidth, height: pageHeight } = page.getSize();
 
-  // Frontend sends coordinates in PDF bottom-left origin (already converted)
-  const sigWidth = width || 200;
-  const sigHeight = height || 60;
-  const sigX = x || 100;
-  const sigY = y || 100;
+  // Frontend sends coordinates assuming 612x792 (US Letter).
+  // Normalize to actual page dimensions for non-standard page sizes.
+  const ASSUMED_W = 612;
+  const ASSUMED_H = 792;
+  const scaleX = pageWidth / ASSUMED_W;
+  const scaleY = pageHeight / ASSUMED_H;
+
+  const sigWidth = (width || 200) * scaleX;
+  const sigHeight = (height || 60) * scaleX; // use scaleX for both to preserve aspect ratio
+  const sigX = (x || 100) * scaleX;
+  const sigY = (y || 100) * scaleY;
 
   page.drawImage(pngImage, {
     x: sigX,

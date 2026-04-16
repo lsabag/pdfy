@@ -346,35 +346,41 @@ function ViewContent() {
             <button type="button" className="btn btn-primary text-sm h-8" onClick={async () => {
               if (!signatureImage || !pdfContainerRef.current) return;
 
-              // PDF standard page size in points
+              // Assumed PDF page size (US Letter) - server normalizes to actual dims
               const PDF_W = 612;
               const PDF_H = 792;
 
-              // Get iframe on screen
+              // Get embed element on screen
               const iframe = pdfContainerRef.current.querySelector("embed, iframe");
               if (!iframe) return;
               const iframeRect = iframe.getBoundingClientRect();
 
-              // Chrome renders PDF scaled to fit embed WIDTH, toolbar shifts start down.
-              // Both axes use width-based scale: embedWidth / PDF_W = 816/612 = 4/3
-              const CHROME_TOP_OFFSET = 35; // toolbar height in px
+              // Chrome PDF embed: toolbar at top, vertical scrollbar on right.
+              // Page is always rendered at width-fit scale (scrolls vertically).
+              const CHROME_TOOLBAR_H = 48; // includes toolbar + top padding
+              const embedW = iframeRect.width;
+              const embedH = iframeRect.height;
+
+              // If page at width-fit overflows vertically, Chrome shows a scrollbar
+              // that reduces the effective rendering width (~17px on Windows).
+              const fullScale = embedW / PDF_W;
+              const availH = embedH - CHROME_TOOLBAR_H;
+              const needsVScroll = (PDF_H * fullScale) > availH;
+              const scrollbarW = needsVScroll ? 10 : 0;
+              const scale = (embedW - scrollbarW) / PDF_W;
+
               const relX = sigPos.x - iframeRect.left;
-              const relY = sigPos.y - iframeRect.top - CHROME_TOP_OFFSET; // from PDF content start
-              const scale = iframeRect.width / PDF_W; // = 4/3 px per pt
+              const relY = sigPos.y - iframeRect.top - CHROME_TOOLBAR_H;
 
               const pdfX = Math.max(0, relX / scale);
               const sigWidthPt = sigSize.w / scale;
               const sigHeightPt = sigSize.h / scale;
-              // pdfY = bottom of signature in PDF points (origin bottom-left)
               const pdfY = Math.max(0, PDF_H - (relY + sigSize.h) / scale);
 
-              // DEBUG: verify center alignment (should match click center)
-              const clickCenterPt = (relY + sigSize.h / 2) / scale; // pt from page top
-              const placedCenterPt = PDF_H - (pdfY + sigHeightPt / 2); // pt from page top
               alert(
-                `לחצת ב: ${(clickCenterPt / PDF_H * 100).toFixed(1)}% מראש הדף\n` +
-                `ממוקם ב: ${(placedCenterPt / PDF_H * 100).toFixed(1)}% מראש הדף\n` +
-                `pdfY=${Math.round(pdfY)} sigH=${Math.round(sigHeightPt)}pt`
+                `SIG: rel(${Math.round(relX)},${Math.round(relY)}) → pdf(${Math.round(pdfX)},${Math.round(pdfY)})\n` +
+                `embed(${embedW}x${embedH}) scale=${scale.toFixed(3)} scrollbar=${scrollbarW} toolbar=${CHROME_TOOLBAR_H}\n` +
+                `sig: ${Math.round(sigWidthPt)}x${Math.round(sigHeightPt)}pt`
               );
 
               try {
