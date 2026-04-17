@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pdfy-v6';
+const CACHE_NAME = 'pdfy-v7';
 
 const PRECACHE = [
   '/',
