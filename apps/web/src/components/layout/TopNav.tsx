@@ -37,11 +37,8 @@ export function TopNav() {
         style={{ background: "var(--color-surface)", borderBottom: "1px solid var(--color-border)" }}>
 
         {/* Logo */}
-        <Link href="/dashboard" className="flex items-center gap-2 mr-6 flex-shrink-0">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white text-sm"
-            style={{ background: "var(--color-primary)" }}>P</div>
-          <span className="text-base font-semibold tracking-tight hidden sm:block"
-            style={{ color: "var(--color-text-primary)" }}>pdfy</span>
+        <Link href="/dashboard" className="flex items-center mr-6 flex-shrink-0">
+          <img src="/favicon.png" alt="pdfy" className="w-8 h-8 rounded-lg object-contain" />
         </Link>
 
         {/* Desktop nav links */}

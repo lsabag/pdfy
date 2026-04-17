@@ -137,6 +137,60 @@ app.post('/api/auth/login', async (c) => {
   return c.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role }, token });
 });
 
+// Google OAuth - verify Google ID token, create/find user, return JWT
+app.post('/api/auth/google', async (c) => {
+  const { credential } = await c.req.json();
+  if (!credential) return c.json({ error: 'Missing credential' }, 400);
+
+  // Verify token via Google's tokeninfo endpoint
+  const gRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+  if (!gRes.ok) return c.json({ error: 'Invalid Google token' }, 401);
+  const gPayload = await gRes.json() as any;
+
+  // Validate audience matches our client ID
+  if (gPayload.aud !== c.env.GOOGLE_CLIENT_ID) {
+    return c.json({ error: 'Token audience mismatch' }, 401);
+  }
+
+  const { sub: googleId, email, name, picture } = gPayload;
+  if (!email) return c.json({ error: 'No email in Google token' }, 400);
+
+  const d = db(c);
+
+  // Find existing user by googleId or email
+  let user = await d.select().from(schema.users).where(eq(schema.users.googleId, googleId)).get();
+  if (!user) {
+    user = await d.select().from(schema.users).where(eq(schema.users.email, email)).get();
+  }
+
+  if (user) {
+    // Update googleId and avatar if needed
+    await d.update(schema.users).set({
+      googleId,
+      avatarUrl: picture || user.avatarUrl,
+      lastLoginAt: new Date().toISOString(),
+    }).where(eq(schema.users.id, user.id));
+  } else {
+    // Create new user
+    const allUsers = await d.select({ id: schema.users.id }).from(schema.users).limit(1).all();
+    const role = allUsers.length === 0 ? 'OWNER' : 'VIEWER';
+    const id = uid();
+    const userName = name || email.split('@')[0];
+    user = { id, email, name: userName, role, googleId, avatarUrl: picture, isActive: true } as any;
+    await d.insert(schema.users).values({
+      id, email, name: userName, passwordHash: '', role, googleId, avatarUrl: picture, isActive: true,
+    });
+  }
+
+  if (!user!.isActive) return c.json({ error: 'Account deactivated' }, 403);
+
+  const token = await createToken(
+    { id: user!.id, email: user!.email, name: user!.name, role: user!.role },
+    c.env.JWT_SECRET,
+  );
+  return c.json({ user: { id: user!.id, email: user!.email, name: user!.name, role: user!.role, avatarUrl: (user as any).avatarUrl }, token });
+});
+
 app.get('/api/auth/me', auth, async (c) => {
   const user = c.get('user');
   const d = db(c);
@@ -941,17 +995,11 @@ app.post('/api/documents/:id/apply-signature', auth, async (c) => {
   const page = pdfDoc.getPage(pageIdx);
   const { width: pageWidth, height: pageHeight } = page.getSize();
 
-  // Frontend sends coordinates assuming 612x792 (US Letter).
-  // Normalize to actual page dimensions for non-standard page sizes.
-  const ASSUMED_W = 612;
-  const ASSUMED_H = 792;
-  const scaleX = pageWidth / ASSUMED_W;
-  const scaleY = pageHeight / ASSUMED_H;
-
-  const sigWidth = (width || 200) * scaleX;
-  const sigHeight = (height || 60) * scaleX; // use scaleX for both to preserve aspect ratio
-  const sigX = (x || 100) * scaleX;
-  const sigY = (y || 100) * scaleY;
+  // Frontend now sends exact PDF point coordinates (using pdf.js actual page dims)
+  const sigWidth = width || 200;
+  const sigHeight = height || 60;
+  const sigX = x || 100;
+  const sigY = y || 100;
 
   page.drawImage(pngImage, {
     x: sigX,
@@ -984,6 +1032,233 @@ app.post('/api/documents/:id/apply-signature', auth, async (c) => {
   });
 
   return c.json({ id: sigId, page: pageNumber, message: 'Signature stamped on PDF' }, 201);
+});
+
+// ═══════════════════════ ANNOTATIONS (editable overlays) ═══════════════════════
+
+// List annotations for a document
+app.get('/api/documents/:id/annotations', auth, async (c) => {
+  const d = db(c);
+  const rows = await d.select().from(schema.annotations)
+    .where(eq(schema.annotations.documentId, c.req.param('id')))
+    .orderBy(schema.annotations.pageNumber)
+    .all();
+  return c.json(rows);
+});
+
+// Create annotation
+app.post('/api/documents/:id/annotations', auth, async (c) => {
+  const user = c.get('user');
+  const body = await c.req.json();
+  const d = db(c);
+  const id = uid();
+  await d.insert(schema.annotations).values({
+    id,
+    documentId: c.req.param('id'),
+    userId: user.id,
+    type: body.type,
+    pageNumber: body.pageNumber,
+    x: body.x, y: body.y,
+    width: body.width, height: body.height,
+    imageData: body.imageData,
+    textContent: body.textContent || null,
+    textMeta: body.textMeta || null,
+  });
+  return c.json({ id }, 201);
+});
+
+// Update annotation (move, resize, re-edit)
+app.patch('/api/documents/:id/annotations/:annId', auth, async (c) => {
+  const body = await c.req.json();
+  const d = db(c);
+  const updates: any = { updatedAt: new Date().toISOString() };
+  if (body.x !== undefined) updates.x = body.x;
+  if (body.y !== undefined) updates.y = body.y;
+  if (body.width !== undefined) updates.width = body.width;
+  if (body.height !== undefined) updates.height = body.height;
+  if (body.imageData !== undefined) updates.imageData = body.imageData;
+  if (body.textContent !== undefined) updates.textContent = body.textContent;
+  if (body.textMeta !== undefined) updates.textMeta = body.textMeta;
+  if (body.pageNumber !== undefined) updates.pageNumber = body.pageNumber;
+  await d.update(schema.annotations).set(updates).where(eq(schema.annotations.id, c.req.param('annId')));
+  return c.json({ ok: true });
+});
+
+// Delete annotation
+app.delete('/api/documents/:id/annotations/:annId', auth, async (c) => {
+  const d = db(c);
+  await d.delete(schema.annotations).where(eq(schema.annotations.id, c.req.param('annId')));
+  return c.json({ ok: true });
+});
+
+// Flatten all annotations into PDF (for download/share)
+app.post('/api/documents/:id/flatten', auth, async (c) => {
+  const user = c.get('user');
+  const d = db(c);
+  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
+  if (!doc || doc.ownerId !== user.id) return c.json({ error: 'Not found' }, 404);
+
+  const object = await c.env.STORAGE.get(doc.storageKey);
+  if (!object) return c.json({ error: 'File not found' }, 404);
+  const buffer = await object.arrayBuffer();
+  const pdfDoc = await PDFDocument.load(buffer);
+
+  const anns = await d.select().from(schema.annotations)
+    .where(eq(schema.annotations.documentId, doc.id)).all();
+
+  for (const ann of anns) {
+    const pageIdx = ann.pageNumber - 1;
+    if (pageIdx < 0 || pageIdx >= pdfDoc.getPageCount()) continue;
+    const page = pdfDoc.getPage(pageIdx);
+
+    let base64Data = ann.imageData;
+    if (base64Data.includes('base64,')) base64Data = base64Data.split('base64,')[1];
+    const binaryString = atob(base64Data.replace(/\s/g, ''));
+    const pngBytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) pngBytes[i] = binaryString.charCodeAt(i);
+
+    const pngImage = await pdfDoc.embedPng(pngBytes);
+    page.drawImage(pngImage, { x: ann.x, y: ann.y, width: ann.width, height: ann.height });
+  }
+
+  const newBuffer = await pdfDoc.save();
+  return new Response(newBuffer, {
+    headers: {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `attachment; filename="${doc.originalName}"`,
+    },
+  });
+});
+
+// ═══════════════════════ SIGNATURE REQUESTS (remote signing) ═══════════════════════
+
+// Create a signature request (send doc for signing)
+app.post('/api/documents/:id/signature-requests', auth, async (c) => {
+  const user = c.get('user');
+  const { signerName, signerEmail, message } = await c.req.json();
+  if (!signerName || !signerEmail) return c.json({ error: 'Name and email required' }, 400);
+  const d = db(c);
+  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, c.req.param('id'))).get();
+  if (!doc || doc.ownerId !== user.id) return c.json({ error: 'Not found' }, 404);
+
+  const id = uid();
+  const token = nanoid(32);
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
+
+  await d.insert(schema.signatureRequests).values({
+    id, documentId: doc.id, requestedById: user.id,
+    signerName, signerEmail, token, message: message || null, expiresAt,
+  });
+
+  const signUrl = `${c.env.CORS_ORIGIN}/sign?token=${token}`;
+  return c.json({ id, token, signUrl }, 201);
+});
+
+// List signature requests for a document
+app.get('/api/documents/:id/signature-requests', auth, async (c) => {
+  const d = db(c);
+  const rows = await d.select().from(schema.signatureRequests)
+    .where(eq(schema.signatureRequests.documentId, c.req.param('id')))
+    .orderBy(desc(schema.signatureRequests.createdAt)).all();
+  return c.json(rows);
+});
+
+// Get signature request by token (public - no auth needed)
+app.get('/api/sign/:token', async (c) => {
+  const d = db(c);
+  const req = await d.select().from(schema.signatureRequests)
+    .where(eq(schema.signatureRequests.token, c.req.param('token'))).get();
+  if (!req) return c.json({ error: 'Not found' }, 404);
+  if (req.status !== 'PENDING') return c.json({ error: 'Already ' + req.status.toLowerCase() }, 400);
+  if (new Date(req.expiresAt) < new Date()) return c.json({ error: 'Link expired' }, 410);
+
+  // Get document info (name, page count)
+  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, req.documentId)).get();
+  if (!doc) return c.json({ error: 'Document not found' }, 404);
+
+  // Get requester name
+  const requester = await d.select({ name: schema.users.name }).from(schema.users)
+    .where(eq(schema.users.id, req.requestedById)).get();
+
+  return c.json({
+    signerName: req.signerName,
+    documentName: doc.name,
+    pageCount: doc.pageCount,
+    message: req.message,
+    requestedBy: requester?.name || 'Unknown',
+  });
+});
+
+// Download PDF for signing (public - token auth)
+app.get('/api/sign/:token/download', async (c) => {
+  const d = db(c);
+  const req = await d.select().from(schema.signatureRequests)
+    .where(eq(schema.signatureRequests.token, c.req.param('token'))).get();
+  if (!req || req.status !== 'PENDING') return c.json({ error: 'Invalid' }, 404);
+  if (new Date(req.expiresAt) < new Date()) return c.json({ error: 'Expired' }, 410);
+
+  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, req.documentId)).get();
+  if (!doc) return c.json({ error: 'Not found' }, 404);
+
+  const object = await c.env.STORAGE.get(doc.storageKey);
+  if (!object) return c.json({ error: 'File not found' }, 404);
+
+  return new Response(object.body, {
+    headers: { 'Content-Type': 'application/pdf', 'Cache-Control': 'private, no-store' },
+  });
+});
+
+// Submit signature (public - token auth) → auto-flatten into PDF
+app.post('/api/sign/:token/submit', async (c) => {
+  const d = db(c);
+  const req = await d.select().from(schema.signatureRequests)
+    .where(eq(schema.signatureRequests.token, c.req.param('token'))).get();
+  if (!req || req.status !== 'PENDING') return c.json({ error: 'Invalid or already signed' }, 400);
+  if (new Date(req.expiresAt) < new Date()) return c.json({ error: 'Expired' }, 410);
+
+  const { signatureData, pageNumber, x, y, width, height } = await c.req.json();
+  if (!signatureData || !pageNumber) return c.json({ error: 'Missing signature data' }, 400);
+
+  // Load the PDF
+  const doc = await d.select().from(schema.documents).where(eq(schema.documents.id, req.documentId)).get();
+  if (!doc) return c.json({ error: 'Document not found' }, 404);
+  const object = await c.env.STORAGE.get(doc.storageKey);
+  if (!object) return c.json({ error: 'File not found' }, 404);
+
+  const buffer = await object.arrayBuffer();
+  const pdfDoc = await PDFDocument.load(buffer);
+  const pageIdx = pageNumber - 1;
+  if (pageIdx < 0 || pageIdx >= pdfDoc.getPageCount()) return c.json({ error: 'Invalid page' }, 400);
+
+  // Embed and draw signature
+  let base64 = signatureData.includes('base64,') ? signatureData.split('base64,')[1] : signatureData;
+  const bin = atob(base64.replace(/\s/g, ''));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+
+  const pngImage = await pdfDoc.embedPng(bytes);
+  const page = pdfDoc.getPage(pageIdx);
+  page.drawImage(pngImage, { x: x || 100, y: y || 100, width: width || 200, height: height || 60 });
+
+  // Save modified PDF
+  const newBuffer = await pdfDoc.save();
+  const owner = await d.select().from(schema.users).where(eq(schema.users.id, doc.ownerId)).get();
+  const storageKey = `documents/${doc.ownerId}/${doc.id}/current.pdf`;
+  await c.env.STORAGE.put(storageKey, newBuffer);
+
+  // Update signature request
+  await d.update(schema.signatureRequests).set({
+    status: 'SIGNED', signedAt: new Date().toISOString(),
+    signatureData, signaturePage: pageNumber,
+    signatureX: x, signatureY: y, signatureW: width, signatureH: height,
+  }).where(eq(schema.signatureRequests.id, req.id));
+
+  // Update document version
+  await d.update(schema.documents).set({
+    version: doc.version + 1, updatedAt: new Date().toISOString(),
+  }).where(eq(schema.documents.id, doc.id));
+
+  return c.json({ ok: true, message: 'Signature applied successfully' });
 });
 
 // ═══════════════════════ FORM FILLING ═══════════════════════

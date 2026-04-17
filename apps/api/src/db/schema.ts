@@ -5,7 +5,8 @@ export const users = sqliteTable('users', {
   id: text('id').primaryKey(),
   email: text('email').notNull().unique(),
   name: text('name').notNull(),
-  passwordHash: text('password_hash').notNull(),
+  passwordHash: text('password_hash'),
+  googleId: text('google_id').unique(),
   role: text('role', { enum: ['OWNER', 'ADMIN', 'EDITOR', 'VIEWER'] }).notNull().default('VIEWER'),
   avatarUrl: text('avatar_url'),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
@@ -99,6 +100,46 @@ export const savedSignatures = sqliteTable('saved_signatures', {
   type: text('type', { enum: ['DRAW', 'TYPE', 'IMAGE'] }).notNull().default('DRAW'),
   data: text('data').notNull(), // base64 PNG or SVG
   isDefault: integer('is_default', { mode: 'boolean' }).notNull().default(false),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+});
+
+// Editable annotations (signatures, text) overlaid on documents
+export const annotations = sqliteTable('annotations', {
+  id: text('id').primaryKey(),
+  documentId: text('document_id').notNull().references(() => documents.id),
+  userId: text('user_id').notNull().references(() => users.id),
+  type: text('type', { enum: ['SIGN', 'TEXT'] }).notNull(),
+  pageNumber: integer('page_number').notNull(),
+  x: real('x').notNull(),          // PDF points from left
+  y: real('y').notNull(),          // PDF points from bottom
+  width: real('width').notNull(),   // PDF points
+  height: real('height').notNull(), // PDF points
+  imageData: text('image_data').notNull(), // base64 PNG
+  // For text type: store original text + settings for re-editing
+  textContent: text('text_content'),
+  textMeta: text('text_meta', { mode: 'json' }).$type<{ font: string; size: number; color: string }>(),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+});
+
+// Signature requests - send document for remote signing
+export const signatureRequests = sqliteTable('signature_requests', {
+  id: text('id').primaryKey(),
+  documentId: text('document_id').notNull().references(() => documents.id),
+  requestedById: text('requested_by_id').notNull().references(() => users.id),
+  signerName: text('signer_name').notNull(),
+  signerEmail: text('signer_email').notNull(),
+  token: text('token').notNull().unique(),
+  status: text('status', { enum: ['PENDING', 'SIGNED', 'DECLINED', 'EXPIRED'] }).notNull().default('PENDING'),
+  message: text('message'), // optional message to signer
+  signedAt: text('signed_at'),
+  signatureData: text('signature_data'), // base64 PNG of signature
+  signaturePage: integer('signature_page'),
+  signatureX: real('signature_x'),
+  signatureY: real('signature_y'),
+  signatureW: real('signature_w'),
+  signatureH: real('signature_h'),
+  expiresAt: text('expires_at').notNull(),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 });
 

@@ -10,6 +10,44 @@ import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useDocumentStore } from "@/stores/document-store";
 import { api } from "@/lib/api-client";
 
+// PDF thumbnail renderer using pdf.js (works on mobile)
+function PdfThumbnail({ blobUrl, name }: { blobUrl: string; name: string }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [rendered, setRendered] = useState(false);
+
+  useEffect(() => {
+    if (!blobUrl || !canvasRef.current) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const pdfjsLib = await import("pdfjs-dist");
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+        const data = await fetch(blobUrl).then((r) => r.arrayBuffer());
+        if (cancelled) return;
+        const pdf = await pdfjsLib.getDocument({ data }).promise;
+        const page = await pdf.getPage(1);
+        const vp = page.getViewport({ scale: 1 });
+        const scale = 400 / vp.width; // render at 400px width for crisp thumbnail
+        const viewport = page.getViewport({ scale });
+        const canvas = canvasRef.current;
+        if (!canvas || cancelled) return;
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        await (page as any).render({ canvasContext: ctx, viewport }).promise;
+        if (!cancelled) setRendered(true);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [blobUrl]);
+
+  return (
+    <canvas ref={canvasRef} className="w-full h-full object-cover"
+      style={{ display: rendered ? "block" : "none", objectFit: "cover", objectPosition: "top" }} />
+  );
+}
+
 interface DocumentCardProps {
   id: string;
   name: string;
@@ -217,17 +255,8 @@ export function DocumentCard({
               </span>
             </div>
           ) : thumbUrl ? (
-            <div style={{ width: "100%", height: "100%", overflow: "hidden", position: "relative", background: "white", borderRadius: "11px 11px 0 0" }}>
-              <iframe src={thumbUrl + "#toolbar=0&navpanes=0&scrollbar=0&view=FitH"}
-                className="pointer-events-none"
-                style={{
-                  border: "none", background: "white",
-                  width: "850px", height: "1100px",
-                  transform: "scale(0.25)", transformOrigin: "top left",
-                  position: "absolute", top: -6, left: -3,
-                  borderRadius: "11px 11px 0 0",
-                }}
-                title={`Preview ${name}`} tabIndex={-1} />
+            <div style={{ width: "100%", height: "100%", overflow: "hidden", background: "white" }}>
+              <PdfThumbnail blobUrl={thumbUrl} name={name} />
             </div>
           ) : (
             <FileText size={48} strokeWidth={1} style={{ color: "var(--color-text-tertiary)" }} />

@@ -99,8 +99,7 @@ function ShareContent() {
       <header className="h-14 flex items-center justify-between px-6 flex-shrink-0"
         style={{ background: "var(--color-surface)", borderBottom: "1px solid var(--color-border)" }}>
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-white text-sm"
-            style={{ background: "var(--color-primary)" }}>P</div>
+          <img src="/favicon.png" alt="pdfy" className="w-8 h-8 rounded-lg object-contain" />
           <span className="font-semibold" style={{ color: "var(--color-text-primary)" }}>
             {share?.document?.name}
           </span>

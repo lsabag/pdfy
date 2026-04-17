@@ -6,6 +6,7 @@ interface User {
   email: string;
   name: string;
   role: string;
+  avatarUrl?: string;
   plan: string;
   storageUsedBytes: number;
   storageQuotaBytes: number;
@@ -16,8 +17,7 @@ interface AuthState {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  loginWithGoogle: (credential: string) => Promise<void>;
   logout: () => void;
   loadUser: () => Promise<void>;
 }
@@ -28,14 +28,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   isLoading: true,
   isAuthenticated: false,
 
-  login: async (email, password) => {
-    const { data } = await api.post('/auth/login', { email, password });
-    localStorage.setItem('pdfy-token', data.token);
-    set({ user: data.user, token: data.token, isAuthenticated: true });
-  },
-
-  register: async (name, email, password) => {
-    const { data } = await api.post('/auth/register', { name, email, password });
+  loginWithGoogle: async (credential) => {
+    const { data } = await api.post('/auth/google', { credential });
     localStorage.setItem('pdfy-token', data.token);
     set({ user: data.user, token: data.token, isAuthenticated: true });
   },

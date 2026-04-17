@@ -1,0 +1,23 @@
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/*.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/dashboard/*
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/login
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/sign
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/share
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/_next/static/*
+  Cache-Control: public, max-age=31536000, immutable

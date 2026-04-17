@@ -18,6 +18,45 @@ interface SignatureModalProps {
   onApply: (signatureData: string) => void;
 }
 
+/** Auto-crop a canvas/dataURL to content bounds (removes transparent padding) */
+function autoCropDataUrl(dataUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement("canvas");
+      c.width = img.width;
+      c.height = img.height;
+      const ctx = c.getContext("2d")!;
+      ctx.drawImage(img, 0, 0);
+      const d = ctx.getImageData(0, 0, c.width, c.height).data;
+      let minX = c.width, minY = c.height, maxX = 0, maxY = 0;
+      for (let y = 0; y < c.height; y++) {
+        for (let x = 0; x < c.width; x++) {
+          if (d[(y * c.width + x) * 4 + 3] > 10) { // alpha > 10
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+        }
+      }
+      if (maxX <= minX || maxY <= minY) { resolve(dataUrl); return; }
+      // Add small padding
+      const pad = 4;
+      minX = Math.max(0, minX - pad);
+      minY = Math.max(0, minY - pad);
+      maxX = Math.min(c.width - 1, maxX + pad);
+      maxY = Math.min(c.height - 1, maxY + pad);
+      const cropped = document.createElement("canvas");
+      cropped.width = maxX - minX + 1;
+      cropped.height = maxY - minY + 1;
+      cropped.getContext("2d")!.drawImage(c, minX, minY, cropped.width, cropped.height, 0, 0, cropped.width, cropped.height);
+      resolve(cropped.toDataURL("image/png"));
+    };
+    img.src = dataUrl;
+  });
+}
+
 export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [tab, setTab] = useState<"draw" | "type" | "saved">("draw");
@@ -37,6 +76,14 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
   const [savedSigs, setSavedSigs] = useState<SavedSignature[]>([]);
   const [saveName, setSaveName] = useState("");
   const [showSaveInput, setShowSaveInput] = useState(false);
+
+  // Lock body scroll when modal is open (prevents mobile page bounce)
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = ""; };
+    }
+  }, [isOpen]);
 
   // Load saved signatures whenever modal opens (any tab)
   useEffect(() => {
@@ -72,15 +119,28 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
     ctx.lineJoin = "round";
   };
 
+  const getCanvasCoords = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const clientX = "touches" in e ? e.touches[0].clientX : e.clientX;
+    const clientY = "touches" in e ? e.touches[0].clientY : e.clientY;
+    // Scale from CSS display size to canvas buffer size
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top) * scaleY,
+    };
+  };
+
   const startDraw = (e: React.MouseEvent | React.TouchEvent) => {
     setIsDrawing(true);
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = ("touches" in e ? e.touches[0].clientX : e.clientX) - rect.left;
-    const y = ("touches" in e ? e.touches[0].clientY : e.clientY) - rect.top;
+    const { x, y } = getCanvasCoords(e);
     ctx.beginPath();
     ctx.moveTo(x, y);
   };
@@ -91,9 +151,7 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = ("touches" in e ? e.touches[0].clientX : e.clientX) - rect.left;
-    const y = ("touches" in e ? e.touches[0].clientY : e.clientY) - rect.top;
+    const { x, y } = getCanvasCoords(e);
     ctx.lineTo(x, y);
     ctx.stroke();
   };
@@ -112,34 +170,41 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
     if (!typedName.trim()) return null;
     const lines = typedName.split("\n");
     const lineHeight = sigFontSize * 1.4;
-    const canvasHeight = Math.max(80, lines.length * lineHeight + 20);
+    const pad = 8;
+
+    // Measure actual text width first
+    const measure = document.createElement("canvas").getContext("2d")!;
+    measure.font = `${sigFontSize}px ${sigFont}`;
+    let maxWidth = 0;
+    lines.forEach((line) => {
+      const w = measure.measureText(line).width;
+      if (w > maxWidth) maxWidth = w;
+    });
+
+    const canvasWidth = Math.ceil(maxWidth + pad * 2);
+    const canvasHeight = Math.max(sigFontSize + pad * 2, Math.ceil(lines.length * lineHeight + pad * 2));
     const canvas = document.createElement("canvas");
-    canvas.width = 500;
+    canvas.width = canvasWidth;
     canvas.height = canvasHeight;
     const ctx = canvas.getContext("2d");
     if (!ctx) return null;
-    // Transparent background - only text is visible on the PDF
-    ctx.clearRect(0, 0, canvas.width, canvasHeight);
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
     ctx.fillStyle = "#000000";
     ctx.font = `${sigFontSize}px ${sigFont}`;
     ctx.textBaseline = "top";
     lines.forEach((line, i) => {
-      ctx.fillText(line, 15, 10 + i * lineHeight);
+      ctx.fillText(line, pad, pad + i * lineHeight);
     });
     return canvas.toDataURL("image/png");
   };
 
   const handleApply = () => {
-    let data: string | null = null;
-    if (tab === "draw") data = getCanvasData();
-    else if (tab === "type") data = getTypedSignatureData();
+    const data = getCanvasData();
     if (data) onApply(data);
   };
 
   const handleSave = async () => {
-    let data: string | null = null;
-    if (tab === "draw") data = getCanvasData();
-    else if (tab === "type") data = getTypedSignatureData();
+    const data = getCanvasData();
     if (!data) { alert("Please draw or type a signature first"); return; }
     try {
       await api.post("/signatures", {
@@ -190,7 +255,6 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
         <div className="flex px-5 pt-3 gap-1">
           {[
             { key: "draw" as const, icon: Pen, label: "Draw" },
-            { key: "type" as const, icon: Type, label: "Type" },
             { key: "saved" as const, icon: Save, label: "Saved" },
           ].map((t) => (
             <button key={t.key}
@@ -211,65 +275,19 @@ export function SignatureModal({ isOpen, onClose, onApply }: SignatureModalProps
             <div>
               <canvas ref={canvasRef} width={440} height={160}
                 className="w-full rounded-lg cursor-crosshair"
-                style={{ border: "2px dashed var(--color-border)", background: "white" }}
+                style={{ border: "2px dashed var(--color-border)", background: "white", touchAction: "none" }}
                 onMouseDown={startDraw} onMouseMove={draw} onMouseUp={stopDraw} onMouseLeave={stopDraw}
-                onTouchStart={startDraw} onTouchMove={draw} onTouchEnd={stopDraw} />
-              <div className="flex justify-between mt-3">
-                <button className="btn btn-secondary text-sm" onClick={clearCanvas}>Clear</button>
+                onTouchStart={(e) => { e.preventDefault(); startDraw(e); }}
+                onTouchMove={(e) => { e.preventDefault(); draw(e); }}
+                onTouchEnd={stopDraw} />
+              <div className="flex flex-wrap justify-between mt-3 gap-2">
+                <button className="btn btn-secondary text-xs sm:text-sm" onClick={clearCanvas}>Clear</button>
                 <div className="flex gap-2">
-                  <button className="btn btn-secondary text-sm" onClick={() => setShowSaveInput(true)}>
-                    <Save size={14} /> Save as permanent
+                  <button className="btn btn-secondary text-xs sm:text-sm" onClick={() => setShowSaveInput(true)}>
+                    <Save size={14} /> <span className="hidden sm:inline">Save</span><span className="sm:hidden">Save</span>
                   </button>
-                  <button className="btn btn-primary text-sm" onClick={handleApply}>Apply to document</button>
+                  <button className="btn btn-primary text-xs sm:text-sm" onClick={handleApply}>Apply</button>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {tab === "type" && (
-            <div>
-              {/* Font and size controls */}
-              <div className="flex gap-2 mb-3">
-                <select id="signature-font" name="signatureFont" className="input text-sm h-9 flex-1" value={sigFont}
-                  onChange={(e) => setSigFont(e.target.value)} aria-label="Signature font">
-                  {fontOptions.map((f) => (
-                    <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>{f.label}</option>
-                  ))}
-                </select>
-                <select id="signature-font-size" name="signatureFontSize" className="input text-sm h-9 w-20" value={sigFontSize}
-                  onChange={(e) => setSigFontSize(Number(e.target.value))} aria-label="Signature font size">
-                  {[18, 24, 30, 36, 42, 48, 56, 64].map((s) => (
-                    <option key={s} value={s}>{s}px</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Text input - multiline */}
-              <textarea id="signature-typed-name" name="signatureTypedName" className="input text-xl resize-none"
-                style={{ fontFamily: sigFont, fontSize: sigFontSize + "px", minHeight: "80px" }}
-                placeholder="Type your signature..."
-                rows={2}
-                value={typedName} onChange={(e) => setTypedName(e.target.value)} autoFocus
-                aria-label="Type your signature" />
-
-              {/* Preview */}
-              <div className="mt-3 p-4 rounded-lg" style={{ background: "white", border: "1px solid var(--color-border)", minHeight: "70px" }}>
-                {typedName ? (
-                  <div style={{ fontFamily: sigFont, fontSize: sigFontSize + "px", color: "#111", whiteSpace: "pre-wrap", lineHeight: 1.4 }}>
-                    {typedName}
-                  </div>
-                ) : (
-                  <span className="text-sm" style={{ color: "var(--color-text-tertiary)" }}>Preview</span>
-                )}
-              </div>
-
-              <div className="flex justify-end mt-3 gap-2">
-                <button className="btn btn-secondary text-sm" onClick={() => setShowSaveInput(true)}>
-                  <Save size={14} /> Save as permanent
-                </button>
-                <button className="btn btn-primary text-sm" onClick={handleApply} disabled={!typedName.trim()}>
-                  Apply to document
-                </button>
               </div>
             </div>
           )}

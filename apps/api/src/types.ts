@@ -3,6 +3,7 @@ export interface Env {
   STORAGE: R2Bucket;
   CORS_ORIGIN: string;
   JWT_SECRET: string;
+  GOOGLE_CLIENT_ID: string;
 }
 
 export interface UserPayload {
