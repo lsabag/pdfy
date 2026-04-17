@@ -9,7 +9,8 @@
       "Bash(wrangler pages:*)",
       "Bash(wrangler d1:*)",
       "Bash(python -c \"import sys,json;d=json.load\\(sys.stdin\\);print\\(f\\\\\"Login: {d.get\\('user',{}\\).get\\('role','FAIL'\\)}\\\\\"\\)\")",
-      "Bash(npx wrangler *)"
+      "Bash(npx wrangler *)",
+      "Read(//c/Users/User/Downloads/**)"
     ]
   }
 }
