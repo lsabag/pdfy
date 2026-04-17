@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pdfy-v4';
+const CACHE_NAME = 'pdfy-v6';
 
 const PRECACHE = [
   '/',
@@ -6,7 +6,11 @@ const PRECACHE = [
   '/login',
   '/manifest.json',
   '/pdf.worker.min.mjs',
-  '/favicon.png',
+  '/favicon.ico',
+  '/favicon-32x32.png',
+  '/android-chrome-192x192.png',
+  '/android-chrome-512x512.png',
+  '/apple-touch-icon.png',
 ];
 
 // Install: cache shell, skip waiting to activate immediately
